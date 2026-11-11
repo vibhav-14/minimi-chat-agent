@@ -222,6 +222,24 @@ describe('executeWebSearch sources', () => {
     expect(outcome.text).toContain('(content shown above)');
   });
 
+  // Without it, "is that answer still correct?" has only links to compare, not what they said.
+  it('keeps the start of what the model read as each source snippet', async () => {
+    const { provider } = tableProvider({
+      a: [
+        result('https://x.test/pricing', {
+          content: `Pro:\n  $25 per seat.\n${'y'.repeat(400)}`,
+        }),
+      ],
+    });
+
+    const outcome = await run({ queries: ['a'] }, provider);
+
+    const snippet = outcome.sourcesAdded[0]?.snippet ?? '';
+    expect(snippet.startsWith('Pro: $25 per seat. yyy')).toBe(true);
+    expect(snippet).toHaveLength(301);
+    expect(snippet.endsWith('…')).toBe(true);
+  });
+
   it('keeps numbers stable across two calls in one turn', async () => {
     const registry = new SourceRegistry();
     const { provider } = tableProvider({

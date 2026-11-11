@@ -3,18 +3,13 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync, type SQLOutputValue } from 'node:sqlite';
 import type { Clock } from '../clock.js';
+import type { Source } from '../search/sources.js';
 import { bm25, terms } from './rank.js';
 import type { DateRange } from './temporal.js';
 
 export type Role = 'user' | 'assistant';
 
-/** A numbered web source an answer cited. */
-export interface Source {
-  n: number;
-  url: string;
-  title: string;
-  publishedDate?: string;
-}
+export type { Source };
 
 export interface Conversation {
   id: string;
