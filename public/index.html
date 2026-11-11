@@ -3,10 +3,43 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>minimi chat</title>
+    <!-- No favicon request: the app makes no requests beyond its own API. -->
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
   </head>
   <body>
-    <h1>minimi chat</h1>
-    <p>The chat UI is coming. The server is running.</p>
+    <div class="layout">
+      <main class="main">
+        <header class="topbar">
+          <h1 class="brand">minimi chat</h1>
+        </header>
+
+        <div class="scroller" id="scroller">
+          <div class="thread" id="thread"></div>
+        </div>
+
+        <form class="composer" id="composer">
+          <label class="visually-hidden" for="prompt">Message</label>
+          <div class="composer-box">
+            <!-- maxlength matches MESSAGE_LIMIT in src/app.ts. -->
+            <textarea
+              id="prompt"
+              name="message"
+              rows="1"
+              maxlength="8000"
+              placeholder="Ask anything, or about an earlier conversation"
+              aria-describedby="composer-hint"
+            ></textarea>
+            <button class="button primary" id="send" type="submit">Send</button>
+          </div>
+          <p class="hint" id="composer-hint">
+            Enter to send, Shift+Enter for a new line.
+          </p>
+        </form>
+      </main>
+    </div>
   </body>
 </html>

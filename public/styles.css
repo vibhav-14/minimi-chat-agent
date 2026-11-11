@@ -1,0 +1,366 @@
+/* Colors are tokens, redefined for dark mode; components use only tokens. */
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f4f4f2;
+  --bg-raised: #fafaf9;
+  --text: #1c1b19;
+  --text-muted: #5a5853;
+  --border: #e2e0dc;
+  --border-strong: #c9c6c0;
+  --accent: #1f4fbf;
+  --accent-text: #ffffff;
+  --danger: #a3241c;
+  --danger-bg: #fbefed;
+  --focus: #1f4fbf;
+
+  --font:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --radius: 8px;
+  --measure: 70ch;
+  --thread-width: 48rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171716;
+    --bg-subtle: #242422;
+    --bg-raised: #1d1d1c;
+    --text: #ebeae6;
+    --text-muted: #a8a59e;
+    --border: #34332f;
+    --border-strong: #4a4843;
+    --accent: #8fb0f5;
+    --accent-text: #10131a;
+    --danger: #f19a92;
+    --danger-bg: #2d1b19;
+    --focus: #8fb0f5;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Layout: the thread scrolls between a fixed top bar and composer. */
+.layout {
+  display: grid;
+  height: 100dvh;
+}
+
+.main {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.scroller {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.thread {
+  max-width: var(--thread-width);
+  margin: 0 auto;
+  padding: 1.5rem 1rem 2rem;
+}
+
+/* Messages: the user's words sit on a quiet panel, answers on the page. */
+.message + .message {
+  margin-top: 1.5rem;
+}
+
+.meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.role {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.user-text {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.answer {
+  max-width: var(--measure);
+  overflow-wrap: break-word;
+}
+
+.answer > :first-child {
+  margin-top: 0;
+}
+
+.answer > :last-child {
+  margin-bottom: 0;
+}
+
+.answer p,
+.answer ul,
+.answer ol,
+.answer pre,
+.answer .table-wrap {
+  margin: 0.75em 0;
+}
+
+.answer ul,
+.answer ol {
+  padding-left: 1.5em;
+}
+
+.answer li + li {
+  margin-top: 0.25em;
+}
+
+.answer li > p,
+.answer li > ul,
+.answer li > ol {
+  margin: 0.25em 0;
+}
+
+.answer h3,
+.answer h4,
+.answer h5,
+.answer h6 {
+  margin: 1.25em 0 0.5em;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.answer h3 {
+  font-size: 1.125rem;
+}
+
+.answer code {
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+.answer pre {
+  overflow-x: auto;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.answer pre code {
+  padding: 0;
+  background: none;
+}
+
+.answer hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.25em 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.answer table {
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.answer th,
+.answer td {
+  padding: 0.375rem 0.75rem 0.375rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.answer th {
+  border-bottom-color: var(--border-strong);
+  font-weight: 600;
+}
+
+/* Notices: an error or a stopped answer, inline in the conversation. */
+.notice {
+  max-width: var(--measure);
+  margin: 0.75rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.notice.stopped {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.notice.error {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+}
+
+.notice-title {
+  margin: 0 0 0.25rem;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.notice-text {
+  margin: 0;
+  /* Setup messages from the server are several lines. */
+  white-space: pre-wrap;
+}
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--bg-subtle);
+}
+
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.button.primary.stop {
+  border-color: var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Composer */
+.composer {
+  width: 100%;
+  max-width: var(--thread-width);
+  margin: 0 auto;
+  padding: 0.5rem 1rem 0.75rem;
+}
+
+.composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--bg);
+}
+
+.composer-box:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 1px var(--focus);
+}
+
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 40vh;
+  padding: 0.375rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  resize: none;
+}
+
+/* The box shows focus for the textarea, so it needs no ring of its own. */
+.composer textarea:focus-visible {
+  outline: none;
+}
+
+.hint {
+  margin: 0.375rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
