@@ -108,8 +108,33 @@ describe('loadSearchConfig', () => {
 });
 
 describe('loadServerConfig', () => {
-  it('starts without API keys so health and static files work', () => {
-    expect(loadServerConfig({})).toEqual({ port: 3000 });
+  // The server opens memory and seeds demo history before any key is set.
+  it('starts without API keys, with memory settings', () => {
+    const config = loadServerConfig({
+      DATA_DIR: '/var/minimi',
+      USER_TIMEZONE: 'Asia/Kolkata',
+    });
+
+    expect(config).toEqual({
+      port: 3000,
+      dataDir: '/var/minimi',
+      userTimeZone: 'Asia/Kolkata',
+    });
+  });
+
+  it('defaults the data directory and the zone', () => {
+    const config = loadServerConfig({});
+
+    expect(config.dataDir).toBe('./data');
+    expect(config.userTimeZone).toMatch(/\S/);
+  });
+
+  it('rejects an unknown USER_TIMEZONE', () => {
+    const error = configError(() =>
+      loadServerConfig({ USER_TIMEZONE: 'Mars/Olympus_Mons' }),
+    );
+
+    expect(error.message).toContain('USER_TIMEZONE is invalid');
   });
 
   it('rejects an invalid PORT', () => {

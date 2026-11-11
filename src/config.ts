@@ -9,7 +9,8 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
 const DEFAULT_DATA_DIR = './data';
 
-function isTimeZone(value: string): boolean {
+/** True for an IANA zone name this runtime knows, such as Asia/Kolkata. */
+export function isTimeZone(value: string): boolean {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value });
     return true;
@@ -20,6 +21,11 @@ function isTimeZone(value: string): boolean {
 
 const serverSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(DEFAULT_PORT),
+  DATA_DIR: z.string().default(DEFAULT_DATA_DIR),
+  USER_TIMEZONE: z
+    .string()
+    .refine(isTimeZone, 'must be an IANA time zone such as Europe/London')
+    .optional(),
 });
 
 const searchSchema = z.object({
@@ -31,17 +37,14 @@ const appSchema = serverSchema.extend({
   ...searchSchema.shape,
   GEMINI_API_KEY: z.string(),
   GEMINI_MODEL: z.string().default(DEFAULT_GEMINI_MODEL),
-  DATA_DIR: z.string().default(DEFAULT_DATA_DIR),
-  USER_TIMEZONE: z
-    .string()
-    .refine(isTimeZone, 'must be an IANA time zone such as Europe/London')
-    .optional(),
 });
 
 export type Env = Readonly<Record<string, string | undefined>>;
 
 export interface ServerConfig {
   port: number;
+  dataDir: string;
+  userTimeZone: string;
 }
 
 export interface SearchConfig {
@@ -52,8 +55,6 @@ export interface SearchConfig {
 export interface AppConfig extends ServerConfig, SearchConfig {
   geminiApiKey: string;
   geminiModel: string;
-  dataDir: string;
-  userTimeZone: string;
 }
 
 /** Thrown with a message meant to be printed as is, without a stack trace. */
@@ -61,10 +62,14 @@ export class ConfigError extends Error {
   override name = 'ConfigError';
 }
 
-/** Settings the HTTP server needs. Works without API keys. */
+/** Settings the server and its memory need. Works without API keys. */
 export function loadServerConfig(env: Env): ServerConfig {
   const parsed = parse(serverSchema, env);
-  return { port: parsed.PORT };
+  return {
+    port: parsed.PORT,
+    dataDir: parsed.DATA_DIR,
+    userTimeZone: parsed.USER_TIMEZONE ?? systemTimeZone(),
+  };
 }
 
 /** Settings for web search alone, for scripts that do not need the model. */
@@ -86,9 +91,12 @@ export function loadConfig(env: Env): AppConfig {
     tavilySearchDepth: parsed.TAVILY_SEARCH_DEPTH,
     geminiModel: parsed.GEMINI_MODEL,
     dataDir: parsed.DATA_DIR,
-    userTimeZone:
-      parsed.USER_TIMEZONE ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+    userTimeZone: parsed.USER_TIMEZONE ?? systemTimeZone(),
   };
+}
+
+function systemTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 function parse<T extends z.ZodType>(schema: T, env: Env): z.infer<T> {
