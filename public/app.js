@@ -120,6 +120,15 @@ function handleEvent(event, view) {
     case 'start':
       conversationId = event.conversationId;
       return false;
+    case 'recall':
+      view.recall(event);
+      return false;
+    case 'search_started':
+      view.searchStarted(event);
+      return false;
+    case 'search_finished':
+      view.searchFinished(event);
+      return false;
     case 'token':
       view.appendText(event.text);
       return false;

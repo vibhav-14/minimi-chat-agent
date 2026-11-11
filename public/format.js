@@ -27,3 +27,100 @@ export function formatTimestamp(date, { locale, timeZone } = {}) {
     timeZone,
   }).format(date);
 }
+
+/**
+ * A calendar day the server resolved ("2026-11-10"), as "10 Nov 2026". The
+ * day is already the user's local day, so it is formatted without a zone shift.
+ *
+ * @param {string} day YYYY-MM-DD
+ * @param {string} [locale]
+ */
+export function formatDay(day, locale) {
+  const date = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return day;
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+/**
+ * @param {number} n
+ * @param {string} one
+ * @param {string} [many]
+ */
+function count(n, one, many = `${one}s`) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+/**
+ * One quiet line saying what memory found for the message, or null when
+ * there is nothing worth saying (no date missed and nothing recalled).
+ *
+ * @param {Extract<import('./types.js').AgentEvent, { type: 'recall' }>} event
+ * @param {string} [locale]
+ * @returns {string | null}
+ */
+export function describeRecall(event, locale) {
+  /** @param {{ text: string, days: string[] }} date */
+  const label = (date) => {
+    const days = date.days.map((day) => formatDay(day, locale)).join(' or ');
+    return `"${date.text}" (${days})`;
+  };
+  const missed = event.dates.filter((date) => event.misses.includes(date.text));
+  const found = event.dates.filter((date) => !missed.includes(date));
+  const parts = [];
+  if (event.exchanges > 0) {
+    const recalled = `Recalled ${count(event.exchanges, 'earlier exchange')}`;
+    parts.push(
+      found.length > 0
+        ? `${recalled} for ${found.map(label).join(', ')}`
+        : recalled,
+    );
+  }
+  for (const date of missed) parts.push(`Nothing stored for ${label(date)}`);
+  return parts.length > 0 ? parts.join('. ') : null;
+}
+
+/**
+ * A query of a running or finished search: still searching, or its report.
+ *
+ * @typedef {{ query: string, status: 'searching' }
+ *   | import('./types.js').QueryReport} QueryState
+ */
+
+/**
+ * @param {QueryState} state
+ */
+export function describeQuery(state) {
+  switch (state.status) {
+    case 'searching':
+      return 'searching';
+    case 'ok':
+      return count(state.sources.length, 'result');
+    case 'failed':
+      return `failed: ${state.message}`;
+  }
+}
+
+/**
+ * The one-line summary of a turn's searches, shown when they are collapsed.
+ *
+ * @param {QueryState[]} queries
+ */
+export function describeSearch(queries) {
+  const total = count(queries.length, 'query', 'queries');
+  if (queries.some((query) => query.status === 'searching')) {
+    return `Searching the web: ${total}`;
+  }
+  let results = 0;
+  let failed = 0;
+  for (const query of queries) {
+    if (query.status === 'ok') results += query.sources.length;
+    if (query.status === 'failed') failed++;
+  }
+  const summary = `Searched ${total}, ${count(results, 'result')}`;
+  return failed > 0 ? `${summary}, ${failed} failed` : summary;
+}
