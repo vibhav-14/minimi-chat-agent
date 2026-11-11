@@ -18,7 +18,7 @@ Each one needs three things at once:
    concrete dates, relative to now, in the user's timezone.
 2. **Dated memory.** The agent must recall what was said on that date, across
    conversations, including what it answered and which sources it used.
-3. **Fresh verification.** It must search the web for what changed *since* that
+3. **Fresh verification.** It must search the web for what changed _since_ that
    date and compare against what it said then.
 
 ## Core decision: memory is context, not a tool
@@ -76,7 +76,7 @@ Two retrieval paths, merged and budgeted:
 - **By topic**: full-text search over past messages, for questions that refer to
   earlier work without a date.
 
-A recalled item is an *exchange*: the user's question, the agent's answer, the
+A recalled item is an _exchange_: the user's question, the agent's answer, the
 sources it cited, and when. If the user names a date and nothing is stored for
 it, the recall block says so and lists the nearest dated exchanges. The model is
 told never to invent a past conversation.
@@ -146,15 +146,15 @@ with fakes and no network.
 
 ## Technology choices
 
-| Choice | Why |
-| --- | --- |
-| TypeScript on Node 22+ | Required by the brief; strict types across the boundaries above |
-| `node:sqlite` | Built into Node, so `npm install` never compiles native code |
-| Hono | Small HTTP layer with first-class streaming |
-| Server-sent events | One-way token stream is all chat needs; simpler than WebSockets |
-| Gemini (free tier) | Runs at zero cost; hidden behind `LlmProvider` |
-| Tavily (free tier) | Returns cleaned page content, supports date filters; behind `SearchProvider` |
-| No build step for the UI | Fewer ways for `npm run dev` to fail |
+| Choice                   | Why                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| TypeScript on Node 22+   | Required by the brief; strict types across the boundaries above              |
+| `node:sqlite`            | Built into Node, so `npm install` never compiles native code                 |
+| Hono                     | Small HTTP layer with first-class streaming                                  |
+| Server-sent events       | One-way token stream is all chat needs; simpler than WebSockets              |
+| Gemini (free tier)       | Runs at zero cost; hidden behind `LlmProvider`                               |
+| Tavily (free tier)       | Returns cleaned page content, supports date filters; behind `SearchProvider` |
+| No build step for the UI | Fewer ways for `npm run dev` to fail                                         |
 
 ## Testing
 
