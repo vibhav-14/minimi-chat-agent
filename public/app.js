@@ -81,6 +81,7 @@ async function send(message) {
   const now = new Date();
   const view = new AssistantMessage(now, followOutput);
   thread.append(userMessage(message, now), view.element);
+  view.wait('Thinking');
   prompt.value = '';
   resizePrompt();
   stickToBottom = true;

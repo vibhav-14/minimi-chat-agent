@@ -6,6 +6,7 @@ import {
   describeRecall,
   describeSearch,
   domainOf,
+  formatElapsed,
   formatPublished,
   formatTimestamp,
 } from './format.js';
@@ -116,26 +117,65 @@ export class AssistantMessage {
     );
     // Searches stay open while they run and fold to one line once the answer starts.
     this.collapseOnText = false;
+    // While nothing visible happens (the model thinking, or reading results),
+    // a line with the seconds elapsed shows the turn is alive.
+    this.waitingLine = el('p', { className: 'activity-line waiting' });
+    this.waitingLabel = '';
+    this.waitingTimer = 0;
+    this.startedAt = date.getTime();
+  }
+
+  /**
+   * Adds an activity line above the waiting line, if one is showing.
+   *
+   * @param {Node} node
+   */
+  addActivity(node) {
+    const waiting = this.waitingLine.isConnected ? this.waitingLine : null;
+    this.activity.insertBefore(node, waiting);
+    this.onRender();
+  }
+
+  /**
+   * Shows the waiting line with `label` until text or a search arrives.
+   *
+   * @param {string} label
+   */
+  wait(label) {
+    this.waitingLabel = label;
+    this.activity.append(this.waitingLine);
+    this.tick();
+    this.waitingTimer ||= window.setInterval(() => this.tick(), 1000);
+    this.onRender();
+  }
+
+  tick() {
+    const elapsed = formatElapsed(Date.now() - this.startedAt);
+    this.waitingLine.textContent = `${this.waitingLabel}, ${elapsed}`;
+  }
+
+  stopWaiting() {
+    clearInterval(this.waitingTimer);
+    this.waitingTimer = 0;
+    this.waitingLine.remove();
   }
 
   /** @param {Extract<AgentEvent, { type: 'recall' }>} event */
   recall(event) {
     const line = describeRecall(event);
-    if (!line) return;
-    this.activity.append(el('p', { className: 'activity-line' }, line));
-    this.onRender();
+    if (line) this.addActivity(el('p', { className: 'activity-line' }, line));
   }
 
   /** @param {Extract<AgentEvent, { type: 'search_started' }>} event */
   searchStarted(event) {
+    this.stopWaiting();
     this.searches.set(
       event.callId,
       event.queries.map((query) => ({ query, status: 'searching' })),
     );
     this.collapseOnText = true;
     this.searchDetails.open = true;
-    if (!this.searchDetails.isConnected)
-      this.activity.append(this.searchDetails);
+    if (!this.searchDetails.isConnected) this.addActivity(this.searchDetails);
     this.renderSearches();
   }
 
@@ -143,6 +183,10 @@ export class AssistantMessage {
   searchFinished(event) {
     this.searches.set(event.callId, event.queries);
     this.renderSearches();
+    const queries = [...this.searches.values()].flat();
+    if (queries.every((query) => query.status !== 'searching')) {
+      this.wait('Reading the results');
+    }
   }
 
   renderSearches() {
@@ -170,6 +214,7 @@ export class AssistantMessage {
    */
   appendText(delta) {
     this.text += delta;
+    this.stopWaiting();
     if (this.collapseOnText) {
       this.searchDetails.open = false;
       this.collapseOnText = false;
@@ -227,6 +272,7 @@ export class AssistantMessage {
 
   /** The answer is complete. */
   finish() {
+    this.stopWaiting();
     this.render();
     this.body.ariaBusy = 'false';
   }
