@@ -153,11 +153,12 @@ export class MemoryStore {
 
   /** Newest first. */
   listConversations(): Conversation[] {
-    return this.statements.conversations.all().map((row) => ({
-      id: text(row.id),
-      title: text(row.title),
-      createdAt: new Date(Number(row.created_at)),
-    }));
+    return this.statements.conversations.all().map(toConversation);
+  }
+
+  getConversation(id: string): Conversation | null {
+    const row = this.statements.conversation.get(id);
+    return row ? toConversation(row) : null;
   }
 
   /** Oldest first. */
@@ -232,6 +233,7 @@ function prepareStatements(db: DatabaseSync) {
     conversations: db.prepare(
       'SELECT * FROM conversations ORDER BY created_at DESC',
     ),
+    conversation: db.prepare('SELECT * FROM conversations WHERE id = ?'),
     messages: db.prepare(
       'SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at, seq',
     ),
@@ -274,6 +276,14 @@ function questionSeq(row: Row, previous: Row | undefined): number | null {
     previous?.role === 'user' &&
     previous.conversation_id === row.conversation_id;
   return answers ? Number(previous.seq) : null;
+}
+
+function toConversation(row: Row): Conversation {
+  return {
+    id: text(row.id),
+    title: text(row.title),
+    createdAt: new Date(Number(row.created_at)),
+  };
 }
 
 function toExchange(row: Row): Exchange {
