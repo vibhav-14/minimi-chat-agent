@@ -1,6 +1,11 @@
 // Tests for the answer Markdown reader (public/markdown.js).
 import { describe, expect, it } from 'vitest';
-import { parseMarkdown, safeUrl } from '../../public/markdown.js';
+import {
+  citationTarget,
+  citedNumbers,
+  parseMarkdown,
+  safeUrl,
+} from '../../public/markdown.js';
 
 const text = (value: string) => ({ type: 'text', text: value });
 const paragraph = (...children: unknown[]) => ({ type: 'paragraph', children });
@@ -247,5 +252,79 @@ describe('safeUrl', () => {
     '',
   ])('rejects %j', (raw) => {
     expect(safeUrl(raw)).toBeNull();
+  });
+});
+
+describe('citations', () => {
+  const sources = new Map([
+    [1, { n: 1, url: 'https://neon.com/pricing', title: 'Neon pricing' }],
+    [2, { n: 2, url: 'javascript:alert(1)', title: 'Bad' }],
+  ]);
+
+  it('reads [n] and [n, m] as citations, but not inside code or links', () => {
+    expect(
+      parseMarkdown('$19 [1]. Both [1, 2]. `[3]` [4](https://a.test)'),
+    ).toEqual([
+      paragraph(
+        text('$19 '),
+        { type: 'cite', n: 1 },
+        text('. Both '),
+        { type: 'cite', n: 1 },
+        { type: 'cite', n: 2 },
+        text('. '),
+        { type: 'code', text: '[3]' },
+        text(' '),
+        { type: 'link', href: 'https://a.test/', children: [text('4')] },
+      ),
+    ]);
+  });
+
+  // Seen from the live model: lists in one bracket, with or without spaces, and runs of brackets.
+  it.each([
+    ['[3, 4]', [3, 4]],
+    ['[1,2]', [1, 2]],
+    ['[3][4]', [3, 4]],
+    ['[1, 9]', [1, 9]],
+  ])('reads %s as one citation per number', (source, numbers) => {
+    expect(parseMarkdown(source)).toEqual([
+      paragraph(...numbers.map((n) => ({ type: 'cite', n }))),
+    ]);
+  });
+
+  it('links each number of a mixed list on its own', () => {
+    expect([1, 9].map((n) => citationTarget(n, sources))).toEqual([
+      { href: 'https://neon.com/pricing', title: 'Neon pricing' },
+      null,
+    ]);
+  });
+
+  it('does not read bracketed words or years past three digits as citations', () => {
+    expect(parseMarkdown('[note] [2026]')).toEqual([
+      paragraph(text('[note] [2026]')),
+    ]);
+  });
+
+  it('links a citation whose source is in the list', () => {
+    expect(citationTarget(1, sources)).toEqual({
+      href: 'https://neon.com/pricing',
+      title: 'Neon pricing',
+    });
+  });
+
+  // A citation must point at a page that was read, and only at a web page.
+  it.each([
+    ['before the sources arrive', 1, null],
+    ['for a number outside the list', 9, sources],
+    ['for a source whose URL is not http(s)', 2, sources],
+  ])('leaves it as text %s', (_, n, list) => {
+    expect(citationTarget(n, list)).toBeNull();
+  });
+
+  it('collects the numbers cited anywhere in the answer', () => {
+    const blocks = parseMarkdown(
+      '# Top [1]\n\n- **a [2]**\n  - b [3]\n\n| x |\n|--|\n| y [4] |\n\n`[5]`',
+    );
+
+    expect([...citedNumbers(blocks)].sort()).toEqual([1, 2, 3, 4]);
   });
 });

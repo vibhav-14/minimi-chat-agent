@@ -47,6 +47,41 @@ export function formatDay(day, locale) {
 }
 
 /**
+ * A source's publish date as a day ("5 Nov 2026"), or null when there is
+ * none or it cannot be read. Search providers send ISO dates or HTTP dates.
+ *
+ * @param {string | undefined} published
+ * @param {Locale} [options]
+ * @returns {string | null}
+ */
+export function formatPublished(published, { locale, timeZone } = {}) {
+  if (!published) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(published))
+    return formatDay(published, locale);
+  const date = new Date(published);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone,
+  }).format(date);
+}
+
+/**
+ * The site a link goes to, without "www.": "pipedrive.com".
+ *
+ * @param {string} url
+ */
+export function domainOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/**
  * @param {number} n
  * @param {string} one
  * @param {string} [many]
