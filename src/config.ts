@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  DEFAULT_SEARCH_DEPTH,
+  tavilySearchDepths,
+  type TavilySearchDepth,
+} from './search/tavily.js';
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
@@ -17,9 +22,14 @@ const serverSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(DEFAULT_PORT),
 });
 
-const appSchema = serverSchema.extend({
-  GEMINI_API_KEY: z.string(),
+const searchSchema = z.object({
   TAVILY_API_KEY: z.string(),
+  TAVILY_SEARCH_DEPTH: z.enum(tavilySearchDepths).default(DEFAULT_SEARCH_DEPTH),
+});
+
+const appSchema = serverSchema.extend({
+  ...searchSchema.shape,
+  GEMINI_API_KEY: z.string(),
   GEMINI_MODEL: z.string().default(DEFAULT_GEMINI_MODEL),
   DATA_DIR: z.string().default(DEFAULT_DATA_DIR),
   USER_TIMEZONE: z
@@ -34,9 +44,13 @@ export interface ServerConfig {
   port: number;
 }
 
-export interface AppConfig extends ServerConfig {
-  geminiApiKey: string;
+export interface SearchConfig {
   tavilyApiKey: string;
+  tavilySearchDepth: TavilySearchDepth;
+}
+
+export interface AppConfig extends ServerConfig, SearchConfig {
+  geminiApiKey: string;
   geminiModel: string;
   dataDir: string;
   userTimeZone: string;
@@ -53,6 +67,15 @@ export function loadServerConfig(env: Env): ServerConfig {
   return { port: parsed.PORT };
 }
 
+/** Settings for web search alone, for scripts that do not need the model. */
+export function loadSearchConfig(env: Env): SearchConfig {
+  const parsed = parse(searchSchema, env);
+  return {
+    tavilyApiKey: parsed.TAVILY_API_KEY,
+    tavilySearchDepth: parsed.TAVILY_SEARCH_DEPTH,
+  };
+}
+
 /** Full settings for the agent. Throws ConfigError if a key is missing or a value is invalid. */
 export function loadConfig(env: Env): AppConfig {
   const parsed = parse(appSchema, env);
@@ -60,6 +83,7 @@ export function loadConfig(env: Env): AppConfig {
     port: parsed.PORT,
     geminiApiKey: parsed.GEMINI_API_KEY,
     tavilyApiKey: parsed.TAVILY_API_KEY,
+    tavilySearchDepth: parsed.TAVILY_SEARCH_DEPTH,
     geminiModel: parsed.GEMINI_MODEL,
     dataDir: parsed.DATA_DIR,
     userTimeZone:

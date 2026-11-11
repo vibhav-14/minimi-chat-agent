@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigError, loadConfig, loadServerConfig } from './config.js';
+import {
+  ConfigError,
+  loadConfig,
+  loadSearchConfig,
+  loadServerConfig,
+} from './config.js';
 
 const keys = { GEMINI_API_KEY: 'gemini-key', TAVILY_API_KEY: 'tavily-key' };
 
@@ -21,12 +26,14 @@ describe('loadConfig', () => {
       GEMINI_MODEL: 'gemini-3.6-flash',
       DATA_DIR: '/var/minimi',
       USER_TIMEZONE: 'Asia/Kolkata',
+      TAVILY_SEARCH_DEPTH: 'basic',
     });
 
     expect(config).toEqual({
       port: 8080,
       geminiApiKey: 'gemini-key',
       tavilyApiKey: 'tavily-key',
+      tavilySearchDepth: 'basic',
       geminiModel: 'gemini-3.6-flash',
       dataDir: '/var/minimi',
       userTimeZone: 'Asia/Kolkata',
@@ -39,6 +46,7 @@ describe('loadConfig', () => {
     expect(config.port).toBe(3000);
     expect(config.geminiModel).toBe('gemini-3.8-flash');
     expect(config.dataDir).toBe('./data');
+    expect(config.tavilySearchDepth).toBe('advanced');
     // The system zone differs per machine; what matters is that one is always set.
     expect(config.userTimeZone).toMatch(/\S/);
   });
@@ -74,10 +82,28 @@ describe('loadConfig', () => {
     ['PORT', 'http'],
     ['PORT', '70000'],
     ['USER_TIMEZONE', 'Mars/Olympus_Mons'],
+    ['TAVILY_SEARCH_DEPTH', 'ultra-fast'],
   ])('rejects %s=%s as invalid', (name, value) => {
     const error = configError(() => loadConfig({ ...keys, [name]: value }));
 
     expect(error.message).toContain(`${name} is invalid`);
+  });
+});
+
+describe('loadSearchConfig', () => {
+  // The try-search script must not demand a Gemini key it never uses.
+  it('needs only the Tavily key', () => {
+    expect(loadSearchConfig({ TAVILY_API_KEY: 'tavily-key' })).toEqual({
+      tavilyApiKey: 'tavily-key',
+      tavilySearchDepth: 'advanced',
+    });
+  });
+
+  it('names TAVILY_API_KEY when it is missing', () => {
+    const error = configError(() => loadSearchConfig({}));
+
+    expect(error.message).toContain('TAVILY_API_KEY is not set');
+    expect(error.message).not.toContain('GEMINI_API_KEY');
   });
 });
 
