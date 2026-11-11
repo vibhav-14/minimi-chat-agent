@@ -19,6 +19,7 @@
     "try:search": "tsx --env-file-if-exists=.env scripts/try-search.ts"
   },
   "dependencies": {
+    "@google/genai": "^3.1.0",
     "@hono/node-server": "^2.1.6",
     "hono": "^4.13.17",
     "tsx": "^4.23.15",
