@@ -9,9 +9,15 @@ function main(): void {
   const { port } = loadServerConfig(process.env);
   const app = createApp({ publicDir });
 
-  const server = serve({ fetch: app.fetch, port }, (info) => {
-    console.log(`minimi-chat-agent listening on http://localhost:${info.port}`);
-  });
+  // Loopback only: the app holds API keys and one user's history, and has no login.
+  const server = serve(
+    { fetch: app.fetch, port, hostname: '127.0.0.1' },
+    (info) => {
+      console.log(
+        `minimi-chat-agent listening on http://localhost:${info.port}`,
+      );
+    },
+  );
   // Listen failures (port in use, no permission) arrive here, not in the catch below.
   server.on('error', (error: Error) => {
     console.error(
