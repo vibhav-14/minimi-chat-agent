@@ -232,6 +232,7 @@ function userMessage(error: LlmError): string {
     case 'quota':
       return 'The Gemini daily free quota is used up. It resets at midnight Pacific time.';
     case 'auth':
+    case 'timeout':
     case 'other':
       return error.message;
   }

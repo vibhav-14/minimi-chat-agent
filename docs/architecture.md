@@ -177,9 +177,11 @@ answer, and one spare for a corrected call). On the last step tool calls are
 switched off and the model is told to answer with what it has and say what it
 could not verify. An unknown tool name or invalid arguments go back to the
 model as a result it can correct, never as an exception. A model failure
-(`LlmError`: auth, rate limit, quota, other) ends the turn with a plain error
-event; the question stays stored, unanswered. A client disconnect aborts the
-model request and the searches.
+(`LlmError`: auth, rate limit, quota, timeout, other) ends the turn with a
+plain error event; the question stays stored, unanswered. Each model step must
+send its first chunk within 30 s and finish within 120 s, or the adapter
+aborts the request and the error names another `GEMINI_MODEL` to try. A client
+disconnect aborts the model request and the searches.
 
 The model is Gemini (`GEMINI_MODEL`, default `gemini-3.8-flash`) through the
 `@google/genai` SDK's `models.generateContentStream`, the stateless API: each

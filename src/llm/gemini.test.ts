@@ -5,8 +5,14 @@ import {
   type Candidate,
   type GenerateContentParameters,
 } from '@google/genai';
-import { describe, expect, it } from 'vitest';
-import { createGeminiProvider, toGeminiRequest } from './gemini.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createGeminiProvider,
+  FIRST_CHUNK_TIMEOUT_MS,
+  STEP_TIMEOUT_MS,
+  toGeminiRequest,
+  type GeminiClient,
+} from './gemini.js';
 import { LlmError, type LlmEvent, type LlmRequest } from './types.js';
 
 type Chunk = { candidates?: Candidate[] };
@@ -344,5 +350,110 @@ describe('createGeminiProvider errors', () => {
     };
 
     await expect(run()).rejects.toBe(reason);
+  });
+});
+
+describe('createGeminiProvider deadlines', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A client whose stream yields `chunks` and then never settles, ignoring any abort. */
+  function stallingClient(chunks: Chunk[]) {
+    const requests: GenerateContentParameters[] = [];
+    const client = {
+      generateContentStream(params: GenerateContentParameters) {
+        requests.push(params);
+        return Promise.resolve(
+          (async function* () {
+            yield* chunks;
+            await new Promise(() => undefined);
+          })(),
+        );
+      },
+    };
+    return { client, requests };
+  }
+
+  function start(client: GeminiClient, signal?: AbortSignal) {
+    const provider = createGeminiProvider({
+      apiKey: 'k',
+      model: 'slow-model',
+      client,
+    });
+    const events: LlmEvent[] = [];
+    const done = (async () => {
+      for await (const event of provider.stream({ ...baseRequest, signal }))
+        events.push(event);
+    })();
+    // Settles the promise for later assertions without an unhandled rejection.
+    done.catch(() => undefined);
+    return { events, done };
+  }
+
+  // The live failure: the request is accepted and nothing ever arrives.
+  it('ends a step with no first chunk with a timeout naming the fix, and aborts the request', async () => {
+    const requests: GenerateContentParameters[] = [];
+    const client = {
+      generateContentStream(params: GenerateContentParameters) {
+        requests.push(params);
+        return new Promise<never>(() => undefined);
+      },
+    };
+    const { done } = start(client);
+
+    await vi.advanceTimersByTimeAsync(FIRST_CHUNK_TIMEOUT_MS - 1);
+    expect(requests[0]?.config?.abortSignal?.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    const error = await done.then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toBeInstanceOf(LlmError);
+    expect(error).toMatchObject({ kind: 'timeout' });
+    expect((error as LlmError).message).toMatch(
+      /slow-model did not respond.*GEMINI_MODEL.*gemini-3\.5-flash-lite/,
+    );
+    expect(requests[0]?.config?.abortSignal?.aborted).toBe(true);
+  });
+
+  it('lets a started stream run past the first-chunk deadline but ends it at the step cap', async () => {
+    const { client } = stallingClient([chunk([{ text: 'Partial' }])]);
+    const { events, done } = start(client);
+
+    await vi.advanceTimersByTimeAsync(FIRST_CHUNK_TIMEOUT_MS + 1);
+    expect(events).toEqual([{ type: 'text', text: 'Partial' }]);
+    await vi.advanceTimersByTimeAsync(STEP_TIMEOUT_MS);
+
+    await expect(done).rejects.toMatchObject({
+      kind: 'timeout',
+      message: expect.stringContaining('did not finish') as string,
+    });
+  });
+
+  it('throws the caller abort, not a timeout, even if the stream ignores it', async () => {
+    const { client } = stallingClient([]);
+    const controller = new AbortController();
+    const reason = new Error('client left');
+    const { done } = start(client, controller.signal);
+
+    controller.abort(reason);
+
+    await expect(done).rejects.toBe(reason);
+  });
+
+  it('leaves no timer running after a normal step', async () => {
+    const { client } = fakeClient([chunk([{ text: 'Hi' }], FinishReason.STOP)]);
+    const { events, done } = start(client);
+
+    await done;
+
+    expect(events.at(-1)).toEqual({ type: 'finish', reason: 'stop' });
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
