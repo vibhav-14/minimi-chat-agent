@@ -69,6 +69,18 @@ export function formatPublished(published, { locale, timeZone } = {}) {
 }
 
 /**
+ * Time waited so far, to the second: "4 s", "1 min 05 s".
+ *
+ * @param {number} ms
+ */
+export function formatElapsed(ms) {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  if (seconds < 60) return `${seconds} s`;
+  const rest = String(seconds % 60).padStart(2, '0');
+  return `${Math.floor(seconds / 60)} min ${rest} s`;
+}
+
+/**
  * The site a link goes to, without "www.": "pipedrive.com".
  *
  * @param {string} url

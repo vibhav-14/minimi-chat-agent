@@ -328,6 +328,10 @@ a {
   margin: 0 0 0.375rem;
 }
 
+.activity-line.waiting {
+  font-variant-numeric: tabular-nums;
+}
+
 .activity-search {
   margin: 0 0 0.625rem;
 }

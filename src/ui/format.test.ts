@@ -7,6 +7,7 @@ import {
   describeSearch,
   domainOf,
   formatDay,
+  formatElapsed,
   formatPublished,
   formatTimestamp,
 } from '../../public/format.js';
@@ -41,6 +42,17 @@ describe('formatPublished', () => {
 
   it.each([undefined, '', 'recently'])('omits %j', (published) => {
     expect(formatPublished(published, { locale: 'en-GB' })).toBeNull();
+  });
+});
+
+describe('formatElapsed', () => {
+  it.each([
+    [0, '0 s'],
+    [13_400, '13 s'],
+    [65_000, '1 min 05 s'],
+    [-50, '0 s'],
+  ])('shows %i ms as %j', (ms, expected) => {
+    expect(formatElapsed(ms)).toBe(expected);
   });
 });
 
