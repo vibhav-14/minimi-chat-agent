@@ -1,9 +1,18 @@
-/** A numbered source the model can cite as [n]. Stored with the answer it supports. */
+/**
+ * A numbered source the model can cite as [n]. Stored with the answer it
+ * supports, so the search tool and the memory store share this one shape.
+ */
 export interface Source {
   n: number;
   url: string;
   title: string;
   publishedDate?: string;
+  /**
+   * The start of what the model read from this page when it answered. Kept so
+   * a later "is that still correct?" can compare what the page said then
+   * with what it says now, not just re-open a link.
+   */
+  snippet?: string;
 }
 
 const TRACKING_PARAMS = new Set([

@@ -15,6 +15,12 @@ const RESULTS_PER_QUERY = 5;
 const RESULTS_PER_CALL = 15;
 /** About 400 tokens per result, 6,000 for a full call: room for a pricing table, not a whole page. */
 const CONTENT_CHARS = 1_500;
+/**
+ * Kept with the stored answer as evidence of what the page said: about 75
+ * tokens, enough for a price line, and five sources stay under 2,000
+ * characters in the recalled history.
+ */
+const SNIPPET_CHARS = 300;
 
 export const webSearchArgsSchema = z.object({
   queries: z
@@ -183,7 +189,16 @@ function toPage(result: SearchResult): Omit<Source, 'n'> {
     url: result.url,
     title: result.title,
     ...(result.publishedDate && { publishedDate: result.publishedDate }),
+    snippet: snippetOf(result.content),
   };
+}
+
+/** The opening of the content the model read, on one line. */
+function snippetOf(content: string): string {
+  const flat = clean(content).replace(/\s+/g, ' ').trim();
+  return flat.length <= SNIPPET_CHARS
+    ? flat
+    : `${flat.slice(0, SNIPPET_CHARS).trimEnd()}…`;
 }
 
 /** A page must not be able to close the results block and speak outside it. */
