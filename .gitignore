@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# local data (conversation memory lives here)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# build and tooling output
+dist/
+coverage/
+*.tsbuildinfo
+
+# editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
