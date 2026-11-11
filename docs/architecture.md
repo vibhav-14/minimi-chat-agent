@@ -119,7 +119,8 @@ the agent can compare what it said, and why, with what the web says now.
 src/
   config.ts            env parsing and validation
   clock.ts             injectable clock (real, fixed for tests)
-  server.ts            HTTP server, SSE chat endpoint, static UI
+  app.ts               route factory (createApp): SSE chat endpoint, static UI
+  server.ts            entry point: reads env, starts listening
   memory/
     store.ts           SQLite persistence (node:sqlite)
     temporal.ts        date phrase -> date range
