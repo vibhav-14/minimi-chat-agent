@@ -31,6 +31,17 @@ export interface GeminiOptions {
   client?: GeminiClient;
 }
 
+/**
+ * A step that has not produced its first chunk by now is not coming: on the
+ * free tier a model was seen to accept the request and send 0 bytes for over
+ * 40 s, while working models answered in 2 to 4 s.
+ */
+export const FIRST_CHUNK_TIMEOUT_MS = 30_000;
+/** Cap on one whole step, so a stream that stalls after starting also ends. */
+export const STEP_TIMEOUT_MS = 120_000;
+/** Suggested in the timeout message: it answered fastest on the free tier. */
+const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+
 // Low is the least thinking gemini-3.8-flash accepts (it rejects `minimal`);
 // the default is medium. A chat reply that mostly reads search results gains
 // little from more, and every thinking token delays the first visible one.
@@ -46,18 +57,85 @@ export function createGeminiProvider(options: GeminiOptions): LlmProvider {
   const client =
     options.client ?? new GoogleGenAI({ apiKey: options.apiKey }).models;
 
+  // The deadline lives here, not in the agent loop: only the adapter holds
+  // the request it must abort, and the SDK sets no client-side timeout of its
+  // own (it disables Node's fetch timeouts and relies on the server's 20
+  // minute cap on a stream).
   return {
     async *stream(request) {
+      const deadline = startDeadline(options.model, request.signal);
       try {
-        const chunks = await client.generateContentStream(
-          toGeminiRequest(request, options.model),
+        const chunks = await deadline.race(
+          client.generateContentStream(
+            toGeminiRequest(
+              { ...request, signal: deadline.signal },
+              options.model,
+            ),
+          ),
         );
-        yield* toEvents(chunks);
+        yield* toEvents(deadline.guard(chunks));
       } catch (error) {
         // A cancelled turn is not a model failure: let the caller see its own abort.
         if (request.signal?.aborted) throw request.signal.reason;
+        if (deadline.expired) throw deadline.signal.reason;
         throw toLlmError(error);
+      } finally {
+        deadline.clear();
       }
+    },
+  };
+}
+
+/**
+ * Two timers for one step: the first chunk within FIRST_CHUNK_TIMEOUT_MS and
+ * the whole step within STEP_TIMEOUT_MS. On expiry `signal` aborts with an
+ * LlmError, which cancels the request. `race` and `guard` reject as soon as
+ * `signal` aborts (expiry or the caller's abort), so the step ends even if
+ * the stream never settles.
+ */
+function startDeadline(model: string, callerSignal: AbortSignal | undefined) {
+  const timeout = new AbortController();
+  const signal = callerSignal
+    ? AbortSignal.any([callerSignal, timeout.signal])
+    : timeout.signal;
+  const expire = (ms: number, message: string) =>
+    setTimeout(() => timeout.abort(new LlmError('timeout', message)), ms);
+  const advice = `Try again, or set GEMINI_MODEL in .env to another model, such as ${FALLBACK_MODEL}.`;
+  const firstChunk = expire(
+    FIRST_CHUNK_TIMEOUT_MS,
+    `The model ${model} did not respond within ${FIRST_CHUNK_TIMEOUT_MS / 1000} s. ${advice}`,
+  );
+  const step = expire(
+    STEP_TIMEOUT_MS,
+    `The model ${model} did not finish its answer within ${STEP_TIMEOUT_MS / 1000} s. ${advice}`,
+  );
+  const aborted = new Promise<never>((_, reject) => {
+    const fail = () => reject(signal.reason as Error);
+    if (signal.aborted) fail();
+    else signal.addEventListener('abort', fail, { once: true });
+  });
+  // Only observed through race(); an abort with nothing pending is not an error.
+  aborted.catch(() => undefined);
+  const race = <T>(promise: Promise<T>) => Promise.race([promise, aborted]);
+
+  return {
+    signal,
+    get expired() {
+      return timeout.signal.aborted;
+    },
+    race,
+    async *guard<T>(source: AsyncIterable<T>): AsyncGenerator<T> {
+      const iterator = source[Symbol.asyncIterator]();
+      for (;;) {
+        const next = await race(iterator.next());
+        clearTimeout(firstChunk);
+        if (next.done) return;
+        yield next.value;
+      }
+    },
+    clear() {
+      clearTimeout(firstChunk);
+      clearTimeout(step);
     },
   };
 }

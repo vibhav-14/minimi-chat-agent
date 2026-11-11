@@ -47,15 +47,21 @@ export type LlmEvent =
 
 /** A chat model. The agent depends on this, never on a vendor SDK. */
 export interface LlmProvider {
-  /** Streams one model step. Ends with a `finish` event; throws LlmError or the caller's abort. */
+  /**
+   * Streams one model step. Ends with a `finish` event; throws LlmError
+   * (including `timeout` when the model does not answer in time) or the
+   * caller's abort.
+   */
   stream(request: LlmRequest): AsyncIterable<LlmEvent>;
 }
 
 /**
  * Why a model call failed, so the user can be told something useful:
- * `rate_limit` may succeed shortly, `quota` and `auth` will not.
+ * `rate_limit` may succeed shortly, `quota` and `auth` will not, and
+ * `timeout` means the model did not answer in time.
  */
-export type LlmErrorKind = 'auth' | 'rate_limit' | 'quota' | 'other';
+export type LlmErrorKind =
+  'auth' | 'rate_limit' | 'quota' | 'timeout' | 'other';
 
 export class LlmError extends Error {
   override name = 'LlmError';

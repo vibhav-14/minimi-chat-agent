@@ -299,6 +299,27 @@ describe('runTurn', () => {
     expect(storedMessages().map((m) => m.role)).toEqual(['user']);
   });
 
+  // The adapter's message says what to change; a generic retry hint would hide it.
+  it('passes a model timeout on with its advice', async () => {
+    const advice =
+      'The model m did not respond within 30 s. Try again, or set GEMINI_MODEL in .env.';
+    const { events } = turn([
+      // eslint-disable-next-line require-yield
+      async function* (): AsyncGenerator<LlmEvent> {
+        await Promise.resolve();
+        throw new LlmError('timeout', advice);
+      },
+    ]);
+
+    const all = await collectEvents(events);
+
+    expect(all.at(-1)).toEqual({
+      type: 'error',
+      kind: 'timeout',
+      message: advice,
+    });
+  });
+
   it('propagates an abort mid-stream and stores no answer', async () => {
     const controller = new AbortController();
     const reason = new Error('client disconnected');
