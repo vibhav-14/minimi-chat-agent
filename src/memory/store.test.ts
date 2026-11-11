@@ -122,6 +122,13 @@ describe('MemoryStore', () => {
     ]);
   });
 
+  // The chat route answers 404 for a conversation id that is not stored.
+  it('gets one conversation by id, or null', () => {
+    const created = store.createConversation('one', at('2026-11-01T00:00:00Z'));
+    expect(store.getConversation(created.id)).toEqual(created);
+    expect(store.getConversation('missing')).toBeNull();
+  });
+
   it('pairs each question with its answer, and leaves an unanswered one without', () => {
     const { id } = store.createConversation('Pairs');
     exchange(id, '2026-11-09T10:00:00Z', 'answered', 'yes');
