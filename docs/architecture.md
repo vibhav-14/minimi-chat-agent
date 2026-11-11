@@ -94,15 +94,30 @@ One tool:
 ```ts
 web_search({
   queries: string[],        // 1 to 5, run in parallel
-  since?: string,           // ISO date; restricts results to on or after it
+  since?: string,           // YYYY-MM-DD; drops results dated before it
   topic?: "general" | "news"
 })
 ```
 
 Batching queries inside one call lets the model fan out ("pricing for each of
 the five CRMs") in a single step. Results are deduplicated by URL, trimmed to a
-token budget and numbered. The model cites by number; the server maps numbers
-back to URLs, so a citation always points at a page that was actually read.
+budget (15 results per call shared across its queries, 1,500 characters each)
+and numbered. Numbers are per turn: a `SourceRegistry` gives each page one
+number across every search in the turn, and its list is stored with the answer.
+The model cites by number; the server maps numbers back to URLs, so a citation
+always points at a page that was actually read.
+
+`since` drops results dated before it but keeps undated ones. Tavily's own
+date filter drops undated results too, and pricing pages, the pages that answer
+"has the price changed since Monday?", are usually undated. They show the
+current state, which the model compares with what it said then; old dated
+articles are the noise that would make it report a past change as new.
+
+Search depth defaults to Tavily's `advanced` (2 credits a query instead of 1)
+because it returns the passages most relevant to the query, such as the pricing
+table, rather than shorter generic ones. `TAVILY_SEARCH_DEPTH=basic` halves the
+cost. Search results are untrusted: they are wrapped in delimiters and the model
+is told never to follow instructions inside them.
 
 The loop is bounded (maximum steps, per-search timeout). If the budget runs out
 the model must answer with what it has and say what it could not verify.
@@ -126,9 +141,10 @@ src/
     temporal.ts        date phrase -> date range
     recall.ts          date + topic retrieval, budgeting
   search/
-    types.ts           SearchProvider interface
+    types.ts           SearchProvider interface, SearchError
     tavily.ts          Tavily implementation
-    tool.ts            web_search tool: fan-out, dedupe, numbering
+    sources.ts         URL normalization, per-turn source numbering
+    tool.ts            web_search tool: fan-out, dedupe, budgets, result text
   llm/
     types.ts           LlmProvider interface (streaming, tool calls)
     gemini.ts          Gemini implementation
