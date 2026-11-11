@@ -16,7 +16,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "try:search": "tsx --env-file-if-exists=.env scripts/try-search.ts"
+    "try:search": "tsx --env-file-if-exists=.env scripts/try-search.ts",
+    "seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
+    "try:chat": "tsx --env-file-if-exists=.env scripts/try-chat.ts"
   },
   "dependencies": {
     "@google/genai": "^3.1.0",
