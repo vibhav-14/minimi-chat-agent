@@ -7,8 +7,23 @@ It is built to answer questions like:
 - "On Monday we shortlisted 5 CRM tools. Has any of them changed pricing since?"
 - "What did I ask you on 3 November? Is your answer still correct today?"
 
-> Work in progress. The server runs and serves a placeholder page; the agent is
-> being built. See [docs/architecture.md](docs/architecture.md) for the design.
+> Work in progress. The agent works through its API (`POST /api/chat` streams
+> server-sent events); the browser page is still a placeholder and the chat UI
+> comes next. See [docs/architecture.md](docs/architecture.md) for the design.
+
+## What works now
+
+- **Chat API** with one tool, web search (Tavily), on Gemini. Answers stream as
+  server-sent events with numbered citations; up to four model steps a turn.
+- **Dated memory**: every message is stored in SQLite. Date phrases such as
+  "Monday", "last Tuesday" or "3 November" are resolved in your time zone, and
+  matching earlier exchanges (with what each source said then) go into the
+  prompt before the model is called.
+- **Demo history**: on first start an empty memory gets three dated demo
+  exchanges, so the sample questions work straight away. They are titled
+  "Demo:" and say they are seeded. `npm run seed` does the same by hand.
+- **No keys yet?** The server still starts; chat replies with what to put in
+  `.env`.
 
 ## Setup
 
@@ -35,3 +50,5 @@ where to get each one and lists the optional settings.
 | `npm run format`       | Format with Prettier                         |
 | `npm run format:check` | Check formatting without writing             |
 | `npm run try:search`   | Run one live search and print its result     |
+| `npm run try:chat`     | Run one live chat turn and print its events  |
+| `npm run seed`         | Add the demo history to an empty memory      |

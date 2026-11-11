@@ -113,16 +113,28 @@ is told never to invent a past conversation.
 `memory/render.ts` turns the result into the prompt block. It is fenced in
 `<recalled_history>` and labelled as quoted history, not instructions. Each
 exchange shows its local date and time, question, answer (truncated with a
-marker past a limit) and source URLs. A total character budget gives by-date
-matches first claim, then the nearest exchanges for a miss, then topic matches,
-and states how many exchanges were left out. With nothing found it says so in
-one line rather than rendering nothing.
+marker past a limit), and each source's URL with a snippet of what the page
+said then. A total character budget gives by-date matches first claim, then
+the nearest exchanges for a miss, then topic matches, and states how many
+exchanges were left out. With nothing found it says so in one line rather than
+rendering nothing.
+
+The limits: by-date answers keep 4,000 characters, because the exchange found
+by the date the user named is usually the one being re-checked, and a
+five-item shortlist with a price per item runs 2,000 to 3,000; topic and
+nearest answers keep 1,500. The block's budget is 16,000 characters (about
+4,000 tokens), room for two full by-date exchanges with their snippets.
 
 ### 4. Assemble
 
-Order matters for prompt caching and for clarity: the stable system prompt comes
-first, then the volatile parts (current date and time, recalled memory, recent
-turns). Long conversations keep the most recent turns verbatim.
+Order matters for prompt caching and for clarity: the stable system prompt
+(`agent/prompt.ts`) comes first, then one context message with the current
+local date, weekday and time and the recalled-history block, then the recent
+turns of this conversation, then the user's message. Recent turns are the last
+10 messages within 12,000 characters (about five exchanges, 3,000 tokens),
+newest kept, never starting with an orphaned answer; older turns stay
+reachable through recall. Turns placed in the prompt are excluded from recall,
+so nothing appears twice.
 
 ### 5. Agent loop
 
@@ -156,14 +168,66 @@ table, rather than shorter generic ones. `TAVILY_SEARCH_DEPTH=basic` halves the
 cost. Search results are untrusted: they are wrapped in delimiters and the model
 is told never to follow instructions inside them.
 
-The loop is bounded (maximum steps, per-search timeout). If the budget runs out
-the model must answer with what it has and say what it could not verify.
+`agent/loop.ts` (`runTurn`) is an async generator over injected
+`LlmProvider`, `SearchProvider`, `MemoryStore` and `Clock`. Each step streams
+the model; tool calls of one step all run at once, results go back in call
+order, and the next step starts. It stops when the model answers without tool
+calls, or after `MAX_STEPS = 4` model calls (search, a follow-up search, the
+answer, and one spare for a corrected call). On the last step tool calls are
+switched off and the model is told to answer with what it has and say what it
+could not verify. An unknown tool name or invalid arguments go back to the
+model as a result it can correct, never as an exception. A model failure
+(`LlmError`: auth, rate limit, quota, other) ends the turn with a plain error
+event; the question stays stored, unanswered. A client disconnect aborts the
+model request and the searches.
+
+The model is Gemini (`GEMINI_MODEL`, default `gemini-3.8-flash`) through the
+`@google/genai` SDK's `models.generateContentStream`, the stateless API: each
+request carries the whole context. Google now recommends its Interactions API
+for new projects, whose main gain is server-side conversation state; this app
+already owns that state (it is the memory), so a second copy at Google would
+add nothing. Thinking is set to `low`, the least this model accepts, because
+every thinking token delays the first visible one. Function calls are replayed
+with their thought signatures, which Gemini 3 models require.
 
 ### 6. Persist the answer
 
-The answer is stored with its sources and the retrieval time. That stored
-evidence is what makes "is your answer still correct today?" answerable later:
-the agent can compare what it said, and why, with what the web says now.
+The answer is stored with every source of the turn (`SourceRegistry.list()`):
+number, URL, title, publish date and a 300-character snippet of what the model
+read from the page. The search tool and the memory store share one `Source`
+type (`search/sources.ts`), so the two cannot drift. That stored evidence is
+what makes "is your answer still correct today?" answerable later: the agent
+compares what it said, and what each page said then, with what the web says
+now.
+
+## HTTP API and events
+
+| Route                        | What it does                                           |
+| ---------------------------- | ------------------------------------------------------ |
+| `POST /api/chat`             | `{ conversationId?, message, timeZone? }`; streams SSE |
+| `GET /api/conversations`     | Conversations, newest first                            |
+| `GET /api/conversations/:id` | One conversation with its messages and sources, or 404 |
+| `GET /api/health`            | `{ status: "ok" }`                                     |
+| any other `/api/*`           | JSON 404, never the UI page                            |
+
+`timeZone` is the browser's IANA zone; an unknown one falls back to
+`USER_TIMEZONE`. Without an id a conversation is created, titled from the
+message. Each server-sent event is named after its `type`
+(`agent/events.ts`), in this order:
+
+| Event             | Carries                                                                            |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `start`           | conversation id and the stored user message id                                     |
+| `recall`          | date phrases and the local days they mean, exchanges found, misses                 |
+| `search_started`  | call id, queries, `since`                                                          |
+| `search_finished` | per-query status (sources or failure), sources added                               |
+| `token`           | a text delta of the answer                                                         |
+| `sources`         | every numbered source the answer may cite                                          |
+| `done`            | the stored answer's id                                                             |
+| `error`           | kind (`auth`, `rate_limit`, `quota`, `config`, `other`) and a message for the user |
+
+The server starts without API keys: health, the page and the history routes
+work, and chat answers with the configuration message as an `error` event.
 
 ## Module layout
 
@@ -172,13 +236,14 @@ src/
   config.ts            env parsing and validation
   clock.ts             injectable clock (real, fixed for tests)
   app.ts               route factory (createApp): SSE chat endpoint, static UI
-  server.ts            entry point: reads env, starts listening
+  server.ts            entry point: reads env, opens memory, seeds, listens
   memory/
     store.ts           SQLite persistence (node:sqlite), exchanges, search
     rank.ts            tokenizer, stemmer, BM25 scoring (pure)
     temporal.ts        date phrase -> local day ranges
     recall.ts          date + topic retrieval
     render.ts          recall result -> prompt block, budgeting
+    seed.ts            dated demo history for an empty store
   search/
     types.ts           SearchProvider interface, SearchError
     tavily.ts          Tavily implementation
@@ -192,8 +257,9 @@ src/
     context.ts         context assembly
     loop.ts            the agent loop
     events.ts          typed stream events (token, search, sources, done)
+    testing.ts         scripted fake model and search for tests
 public/                 chat UI (no build step)
-scripts/                seed and eval scripts
+scripts/                seed, try:search, try:chat
 ```
 
 Boundaries are interfaces: `LlmProvider`, `SearchProvider`, `Clock`. The agent
@@ -217,13 +283,35 @@ fake and exercises the real SQL.
 ## Testing
 
 - Unit: temporal resolution (fixed clock), memory ranking, recall, search dedupe
-  and numbering, context assembly.
-- Loop: scripted fake model and fake search provider drive the full pipeline.
-- Evals: `npm run eval` seeds dated history and runs the brief's sample
-  questions against the live providers.
+  and numbering, context assembly, Gemini request and stream mapping with a
+  fake client.
+- Loop: scripted fake model and fake search provider drive the full pipeline:
+  no search, search then answer, concurrent calls, the step limit, a corrected
+  tool call, a failed search, a rate limit, an abort.
+- Routes: `app.request` against fakes, reading the SSE body.
+- Sample questions: each one runs through the loop over the seeded demo
+  history at a fixed Wednesday, and the test checks the model's prompt holds
+  the right earlier exchange.
+- Live: `npm run try:chat -- "question"` runs one turn against the real
+  providers. Live evals are not built yet.
 
 ## Reviewing time-dependent behaviour
 
-A reviewer cannot wait a week to ask about "last Tuesday". `npm run seed` loads
-a small dated history (relative to today) so those questions work immediately,
-and an import endpoint accepts timestamped history in JSON.
+A reviewer cannot wait a week to ask about "last Tuesday". On startup, an
+empty memory gets three demo exchanges (`memory/seed.ts`, also `npm run seed`),
+dated from the clock in the user's zone so the sample questions work on any
+day:
+
+- a CRM shortlist (five tools, a price per seat, sources with snippets) on the
+  most recent Monday before today;
+- Postgres hosting options on the Tuesday "last Tuesday" resolves to first,
+  which is always one of its candidates;
+- the current Node.js LTS on the most recent 3 November before today (last
+  year's on 3 November itself).
+
+Each is titled "Demo:", its question starts "(Demo)" and its answer opens with
+a line saying it is seeded demo history with illustrative prices, so both a
+person and the model can tell. Pipedrive's seeded price is deliberately stale,
+so "has any of them changed pricing?" always has something to find. When two
+of the dates fall on one day the exchanges sit at different hours and are all
+still found.
