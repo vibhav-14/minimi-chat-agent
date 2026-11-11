@@ -34,3 +34,4 @@ where to get each one and lists the optional settings.
 | `npm run lint`         | Lint with ESLint                             |
 | `npm run format`       | Format with Prettier                         |
 | `npm run format:check` | Check formatting without writing             |
+| `npm run try:search`   | Run one live search and print its result     |
