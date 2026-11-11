@@ -26,3 +26,8 @@ Thumbs.db
 # logs
 *.log
 npm-debug.log*
+
+# local tooling
+.claude/
+.graphify/
+.impeccable/
