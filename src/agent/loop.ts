@@ -75,6 +75,7 @@ export async function* runTurn(
 
   try {
     for (let step = 1; step <= MAX_STEPS; step++) {
+      signal?.throwIfAborted();
       const last = step === MAX_STEPS;
       if (last) messages.push({ role: 'user', text: FINAL_STEP_NOTE });
 
