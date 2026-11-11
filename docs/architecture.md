@@ -43,7 +43,7 @@ user message
 2. resolve time deterministic parser turns date phrases into date ranges
    │
    ▼
-3. recall       query memory by date range and by topic (full-text)
+3. recall       query memory by date range and by topic (ranked words)
    │            an empty result for a named date is reported explicitly
    ▼
 4. assemble     stable system prompt + current date + recalled memory
@@ -63,23 +63,60 @@ timezone is stored alongside so "Monday" means the user's Monday.
 
 ### 2. Resolve time
 
-A deterministic parser (chrono-node, with the injected clock as reference)
-extracts date expressions and returns closed date ranges. Past-biased: "Monday"
-means the most recent Monday that has already happened. No model call: date
-arithmetic is something code gets right every time and models do not.
+A deterministic parser (`memory/temporal.ts`, with the injected clock as
+reference) extracts date expressions and returns half-open ranges `[from, to)`
+of whole local days in the user's IANA zone. No model call: date arithmetic is
+something code gets right every time and models do not.
+
+It is a small rule table rather than chrono-node. chrono-node reads "march
+forward" as next March and "sun" as Sunday, returns one instant at local noon
+instead of a day, and has no way to say a phrase is ambiguous; each would need
+overriding. The rules, all past-biased because this is recall:
+
+| Phrase                              | Meaning                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| "Monday", "on Monday"               | The most recent Monday; said on a Monday, today or a week ago                             |
+| "last Tuesday"                      | The most recent Tuesday before today, plus the one before it if the first is in this week |
+| "Tuesday last week"                 | The Tuesday of the previous Monday-to-Sunday week                                         |
+| "3 November", "Nov 3", "3rd of Nov" | The most recent 3 November not in the future                                              |
+| "3 November 2025", "2025-11-03"     | That day                                                                                  |
+| "today", "yesterday", "N days ago"  | That day                                                                                  |
+| "last week", "N weeks ago"          | That Monday-to-Sunday week                                                                |
+| "last month"                        | The previous calendar month                                                               |
+| "since <any of the above>"          | From the start of that day until now                                                      |
+
+When a phrase has two candidates, recall keeps the ones that have data. Only
+full weekday names match, and a month needs a day number beside it, so "sun",
+"may I ask" and "march forward" are not dates.
 
 ### 3. Recall
 
 Two retrieval paths, merged and budgeted:
 
 - **By date**: all exchanges inside each resolved range.
-- **By topic**: full-text search over past messages, for questions that refer to
-  earlier work without a date.
+- **By topic**: BM25 ranking with light suffix stemming ("pricing" finds
+  "prices") over past questions and answers, for questions that refer to
+  earlier work without a date. Ranking is plain TypeScript (`memory/rank.ts`)
+  rather than SQLite's FTS5, because the SQLite bundled with Node 22 is built
+  without FTS5; reading every message per turn is fine at one person's scale
+  (5,000 messages rank in about a tenth of a second). The search words are the message minus its date phrases,
+  stopwords and numbers; the three best exchanges not already found by date
+  are kept.
 
 A recalled item is an _exchange_: the user's question, the agent's answer, the
-sources it cited, and when. If the user names a date and nothing is stored for
-it, the recall block says so and lists the nearest dated exchanges. The model is
-told never to invent a past conversation.
+sources it cited, and when. If the user names a past date and nothing is stored
+for it, the recall block says so and lists the nearest stored exchanges. A range
+that runs up to now ("today", "since Monday") is never reported as a miss. The
+message being answered and turns already in the prompt are excluded. The model
+is told never to invent a past conversation.
+
+`memory/render.ts` turns the result into the prompt block. It is fenced in
+`<recalled_history>` and labelled as quoted history, not instructions. Each
+exchange shows its local date and time, question, answer (truncated with a
+marker past a limit) and source URLs. A total character budget gives by-date
+matches first claim, then the nearest exchanges for a miss, then topic matches,
+and states how many exchanges were left out. With nothing found it says so in
+one line rather than rendering nothing.
 
 ### 4. Assemble
 
@@ -137,9 +174,11 @@ src/
   app.ts               route factory (createApp): SSE chat endpoint, static UI
   server.ts            entry point: reads env, starts listening
   memory/
-    store.ts           SQLite persistence (node:sqlite)
-    temporal.ts        date phrase -> date range
-    recall.ts          date + topic retrieval, budgeting
+    store.ts           SQLite persistence (node:sqlite), exchanges, search
+    rank.ts            tokenizer, stemmer, BM25 scoring (pure)
+    temporal.ts        date phrase -> local day ranges
+    recall.ts          date + topic retrieval
+    render.ts          recall result -> prompt block, budgeting
   search/
     types.ts           SearchProvider interface, SearchError
     tavily.ts          Tavily implementation
@@ -157,9 +196,11 @@ public/                 chat UI (no build step)
 scripts/                seed and eval scripts
 ```
 
-Boundaries are interfaces: `LlmProvider`, `SearchProvider`, `Clock`,
-`MemoryStore`. The agent loop depends only on those, so it is tested end to end
-with fakes and no network.
+Boundaries are interfaces: `LlmProvider`, `SearchProvider`, `Clock`. The agent
+loop depends only on those and on `MemoryStore`, so it is tested end to end with
+fakes and no network. `MemoryStore` is a concrete class rather than an
+interface: it opens on `:memory:` in tests, which is faster to set up than a
+fake and exercises the real SQL.
 
 ## Technology choices
 
@@ -175,8 +216,8 @@ with fakes and no network.
 
 ## Testing
 
-- Unit: temporal resolution (fixed clock), recall, search dedupe and numbering,
-  context assembly.
+- Unit: temporal resolution (fixed clock), memory ranking, recall, search dedupe
+  and numbering, context assembly.
 - Loop: scripted fake model and fake search provider drive the full pipeline.
 - Evals: `npm run eval` seeds dated history and runs the brief's sample
   questions against the live providers.
