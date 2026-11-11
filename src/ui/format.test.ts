@@ -5,7 +5,9 @@ import {
   describeQuery,
   describeRecall,
   describeSearch,
+  domainOf,
   formatDay,
+  formatPublished,
   formatTimestamp,
 } from '../../public/format.js';
 
@@ -23,6 +25,32 @@ describe('formatDay', () => {
 
   it('returns text it cannot read unchanged', () => {
     expect(formatDay('soon', 'en-GB')).toBe('soon');
+  });
+});
+
+describe('formatPublished', () => {
+  it.each([
+    ['an ISO day', '2026-11-05', '5 Nov 2026'],
+    ['an ISO instant', '2026-11-05T23:30:00Z', '5 Nov 2026'],
+    ['an HTTP date', 'Thu, 05 Nov 2026 10:00:00 GMT', '5 Nov 2026'],
+  ])('shows %s as a day', (_, published, expected) => {
+    expect(
+      formatPublished(published, { locale: 'en-GB', timeZone: 'UTC' }),
+    ).toBe(expected);
+  });
+
+  it.each([undefined, '', 'recently'])('omits %j', (published) => {
+    expect(formatPublished(published, { locale: 'en-GB' })).toBeNull();
+  });
+});
+
+describe('domainOf', () => {
+  it.each([
+    ['https://www.pipedrive.com/en/pricing', 'pipedrive.com'],
+    ['https://neon.com', 'neon.com'],
+    ['not a url', ''],
+  ])('reads %s as %j', (url, expected) => {
+    expect(domainOf(url)).toBe(expected);
   });
 });
 

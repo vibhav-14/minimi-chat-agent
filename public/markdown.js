@@ -11,8 +11,11 @@
  *   | { type: 'strong', children: Inline[] }
  *   | { type: 'em', children: Inline[] }
  *   | { type: 'link', href: string, children: Inline[] }
+ *   | { type: 'cite', n: number }
  *   | { type: 'break' }} Inline
  */
+
+/** @typedef {import('./types.js').Source} Source */
 
 /** @typedef {'left' | 'center' | 'right' | null} Align */
 
@@ -34,6 +37,8 @@ const TABLE_DIVIDER = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/;
 // Any ASCII punctuation may be escaped with a backslash.
 const ESCAPABLE = /[!-/:-@[-`{-~]/;
 const LINK = /\[([^\]\n]+)\]\(\s*([^\s)]+)\s*\)/y;
+// "[2]" as the system prompt asks, and "[2, 3]" as models also write.
+const CITATION = /\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]/y;
 
 /**
  * The URL if it is an absolute http or https URL, else null. Links from the
@@ -52,6 +57,54 @@ export function safeUrl(raw) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The source a citation [n] links to, or null when there is none to link:
+ * the sources have not arrived yet, n is not among them, or its URL is not
+ * a web page. A citation without a target stays plain text.
+ *
+ * @param {number} n
+ * @param {Map<number, Source> | null} sources
+ * @returns {{ href: string, title: string } | null}
+ */
+export function citationTarget(n, sources) {
+  const source = sources?.get(n);
+  const href = source ? safeUrl(source.url) : null;
+  return source && href ? { href, title: source.title } : null;
+}
+
+/**
+ * Every source number the answer cites, so the source list can put those
+ * first.
+ *
+ * @param {Block[]} blocks
+ * @returns {Set<number>}
+ */
+export function citedNumbers(blocks) {
+  /** @type {Set<number>} */
+  const cited = new Set();
+  /** @param {Inline[]} nodes */
+  const visitInlines = (nodes) => {
+    for (const node of nodes) {
+      if (node.type === 'cite') cited.add(node.n);
+      else if ('children' in node) visitInlines(node.children);
+    }
+  };
+  /** @param {Block[]} list */
+  const visitBlocks = (list) => {
+    for (const block of list) {
+      if (block.type === 'paragraph' || block.type === 'heading') {
+        visitInlines(block.children);
+      } else if (block.type === 'list') {
+        block.items.forEach(visitBlocks);
+      } else if (block.type === 'table') {
+        [block.head, ...block.rows].flat().forEach(visitInlines);
+      }
+    }
+  };
+  visitBlocks(blocks);
+  return cited;
 }
 
 /**
@@ -383,6 +436,15 @@ function parseInline(text) {
         // An unsafe link keeps its words and loses its target.
         else for (const child of children) pushInline(child);
         i += link[0].length;
+        continue;
+      }
+      CITATION.lastIndex = i;
+      const citation = CITATION.exec(text);
+      if (citation) {
+        for (const n of (citation[1] ?? '').split(',')) {
+          push({ type: 'cite', n: Number(n) });
+        }
+        i += citation[0].length;
         continue;
       }
     }

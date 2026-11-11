@@ -132,6 +132,9 @@ function handleEvent(event, view) {
     case 'token':
       view.appendText(event.text);
       return false;
+    case 'sources':
+      view.setSources(event.sources);
+      return false;
     case 'done':
       view.finish();
       return true;

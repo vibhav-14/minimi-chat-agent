@@ -5,12 +5,15 @@ import {
   describeQuery,
   describeRecall,
   describeSearch,
+  domainOf,
+  formatPublished,
   formatTimestamp,
 } from './format.js';
-import { parseMarkdown } from './markdown.js';
-import { renderMarkdown } from './render.js';
+import { citedNumbers, parseMarkdown, safeUrl } from './markdown.js';
+import { externalLink, renderMarkdown } from './render.js';
 
 /** @typedef {import('./types.js').AgentEvent} AgentEvent */
+/** @typedef {import('./types.js').Source} Source */
 /** @typedef {import('./format.js').QueryState} QueryState */
 
 /**
@@ -42,6 +45,32 @@ export function userMessage(text, date) {
   );
 }
 
+/**
+ * One source: number, title linking to the page, site and publish date.
+ *
+ * @param {Source} source
+ */
+function sourceItem(source) {
+  const href = safeUrl(source.url);
+  const title = source.title || domainOf(source.url) || source.url;
+  const published = formatPublished(source.publishedDate);
+  return el(
+    'li',
+    {},
+    el('span', { className: 'source-n' }, String(source.n)),
+    el(
+      'span',
+      { className: 'source-body' },
+      href ? externalLink(href, title) : title,
+      el(
+        'span',
+        { className: 'source-meta' },
+        [domainOf(source.url), published].filter(Boolean).join(' · '),
+      ),
+    ),
+  );
+}
+
 export class AssistantMessage {
   /**
    * @param {Date} date
@@ -59,12 +88,20 @@ export class AssistantMessage {
     });
     // What the turn did before answering: memory, then searches.
     this.activity = el('div', { className: 'activity' });
+    /** @type {Map<number, Source> | null} Null until the sources event. */
+    this.sources = null;
+    this.sourceList = el('section', {
+      className: 'sources',
+      ariaLabel: 'Sources',
+      hidden: true,
+    });
     this.element = el(
       'article',
       { className: 'message assistant' },
       meta('Assistant', date),
       this.activity,
       this.body,
+      this.sourceList,
     );
     /** @type {Map<string, QueryState[]>} Each search call's queries, by call id. */
     this.searches = new Map();
@@ -140,12 +177,52 @@ export class AssistantMessage {
     this.frame ||= requestAnimationFrame(() => this.render());
   }
 
+  /**
+   * The sources the answer may cite. From here on its [n] become links.
+   *
+   * @param {Source[]} sources
+   */
+  setSources(sources) {
+    this.sources = new Map(sources.map((source) => [source.n, source]));
+    this.render();
+  }
+
   /** Re-reads the whole answer, so markup split across tokens comes out right. */
   render() {
     cancelAnimationFrame(this.frame);
     this.frame = 0;
-    this.body.replaceChildren(renderMarkdown(parseMarkdown(this.text)));
+    const blocks = parseMarkdown(this.text);
+    this.body.replaceChildren(renderMarkdown(blocks, this.sources));
+    if (this.sources) this.renderSources(citedNumbers(blocks));
     this.onRender();
+  }
+
+  /**
+   * Cited sources are listed under the answer; pages read but not cited
+   * fold into one line below them.
+   *
+   * @param {Set<number>} cited
+   */
+  renderSources(cited) {
+    const all = [...(this.sources?.values() ?? [])];
+    const used = all.filter((source) => cited.has(source.n));
+    const unused = all.filter((source) => !cited.has(source.n));
+    const pages = unused.length === 1 ? 'page' : 'pages';
+    this.sourceList.replaceChildren(
+      el('h3', { className: 'sources-title' }, 'Sources'),
+      el(
+        'ul',
+        { hidden: used.length === 0 },
+        ...used.map((source) => sourceItem(source)),
+      ),
+      el(
+        'details',
+        { hidden: unused.length === 0 },
+        el('summary', {}, `${unused.length} more ${pages} read, not cited`),
+        el('ul', {}, ...unused.map((source) => sourceItem(source))),
+      ),
+    );
+    this.sourceList.hidden = all.length === 0;
   }
 
   /** The answer is complete. */
