@@ -2,8 +2,16 @@ import type { RecallResult } from './recall.js';
 import type { Exchange } from './store.js';
 import { calendarDayAt, startOfLocalDay, type DateRange } from './temporal.js';
 
-export const DEFAULT_MEMORY_BUDGET = 8000;
+// About 4,000 tokens: room for two full by-date exchanges with their
+// evidence, small beside the model's context and the search results.
+export const DEFAULT_MEMORY_BUDGET = 16_000;
 const QUESTION_LIMIT = 500;
+// An exchange found by the date the user named is usually the one being
+// re-checked ("has any of them changed pricing?"), so its answer is kept
+// nearly whole: a five-item shortlist with a price per item runs 2,000 to
+// 3,000 characters. With five 300-character snippets it renders in about
+// 6,000, so two fit the budget. Topic and nearest matches are context only.
+const DATE_ANSWER_LIMIT = 4000;
 const ANSWER_LIMIT = 1500;
 
 const SEPARATOR = '\n\n';
@@ -57,12 +65,13 @@ export function renderRecall(
   const addSection = (
     heading: string,
     exchanges: Exchange[],
+    answerLimit: number,
     alwaysShowHeading = false,
   ) => {
     let headed = alwaysShowHeading;
     if (headed) blocks.push(heading);
     for (const exchange of exchanges) {
-      const text = renderExchange(exchange, timeZone);
+      const text = renderExchange(exchange, timeZone, answerLimit);
       const extra = headed ? [text] : [heading, text];
       if (!fits(extra)) {
         omitted++;
@@ -77,6 +86,7 @@ export function renderRecall(
     addSection(
       `Stored for "${match.reference.text}" (${describeRange(match.range, timeZone)}):`,
       match.exchanges,
+      DATE_ANSWER_LIMIT,
     );
   }
   for (const miss of misses) {
@@ -90,23 +100,28 @@ export function renderRecall(
     addSection(
       `Nothing is stored for "${miss.reference.text}" (${dates}).${nearest}`,
       miss.nearest,
+      ANSWER_LIMIT,
       true,
     );
   }
-  addSection('Related by topic:', byTopic);
+  addSection('Related by topic:', byTopic, ANSWER_LIMIT);
 
   if (omitted > 0) blocks.push(omissionNote(omitted));
   blocks.push(CLOSE);
   return blocks.join(SEPARATOR);
 }
 
-function renderExchange(exchange: Exchange, timeZone: string): string {
+function renderExchange(
+  exchange: Exchange,
+  timeZone: string,
+  answerLimit: number,
+): string {
   const { question, answer } = exchange;
   const lines = [
     `[${formatDay(question.createdAt, timeZone)}, ${formatTime(question.createdAt, timeZone)}]`,
     `User: ${truncate(question.content, QUESTION_LIMIT)}`,
     answer
-      ? `Assistant: ${truncate(answer.content, ANSWER_LIMIT)}`
+      ? `Assistant: ${truncate(answer.content, answerLimit)}`
       : 'Assistant: (no answer was stored; that turn may have failed)',
   ];
   if (answer && answer.sources.length > 0) {
@@ -116,7 +131,10 @@ function renderExchange(exchange: Exchange, timeZone: string): string {
         const published = source.publishedDate
           ? ` (published ${source.publishedDate})`
           : '';
-        return `- [${source.n}] ${source.title}: ${source.url}${published}`;
+        const line = `- [${source.n}] ${source.title}: ${source.url}${published}`;
+        return source.snippet
+          ? `${line}\n  Page then said: "${source.snippet}"`
+          : line;
       }),
     );
   }

@@ -80,6 +80,7 @@ function seedHistory() {
         url: 'https://www.hubspot.com/pricing',
         title: 'HubSpot pricing',
         publishedDate: '2026-10-20',
+        snippet: 'Sales Hub Professional: $90 per seat a month.',
       },
       {
         n: 2,
@@ -118,7 +119,7 @@ describe('recall: the sample questions, end to end', () => {
     expect(prompt).toContain('Stored for "Monday" (Monday 9 November 2026):');
     expect(prompt).toContain('[Monday 9 November 2026, 10:00]');
     expect(prompt).toContain(
-      '- [1] HubSpot pricing: https://www.hubspot.com/pricing (published 2026-10-20)',
+      '- [1] HubSpot pricing: https://www.hubspot.com/pricing (published 2026-10-20)\n  Page then said: "Sales Hub Professional: $90 per seat a month."',
     );
   });
 
@@ -258,7 +259,7 @@ describe('recall', () => {
 
 describe('renderRecall budget', () => {
   it('truncates long answers and drops lower-priority exchanges past the budget', () => {
-    const long = 'x'.repeat(3000);
+    const long = 'x'.repeat(5000);
     // Monday 9 November, three long answers, plus a topic match from October.
     seed('2026-11-09T04:30:00Z', 'first CRM question', long);
     seed('2026-11-09T05:30:00Z', 'second CRM question', long);
@@ -274,11 +275,14 @@ describe('renderRecall budget', () => {
     });
     expect(result.byTopic).toHaveLength(1);
 
-    const budget = 4000;
+    const budget = 10_000;
     const prompt = renderRecall(result, ZONE, budget);
 
     expect(prompt.length).toBeLessThanOrEqual(budget);
-    expect(prompt).toContain('[truncated, 1500 more characters]');
+    // By-date answers keep 4,000 characters, so a long shortlist keeps its prices.
+    expect(prompt).toContain(
+      `${'x'.repeat(4000)} [truncated, 1000 more characters]`,
+    );
     expect(prompt).toContain('first CRM question');
     expect(prompt).toContain('second CRM question');
     // By-date matches win the space; the rest are counted, not silently lost.
