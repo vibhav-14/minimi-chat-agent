@@ -1,9 +1,17 @@
 // The DOM for one message. A live turn and a message loaded from history go
 // through the same view, so both look the same.
 import { el } from './dom.js';
-import { formatTimestamp } from './format.js';
+import {
+  describeQuery,
+  describeRecall,
+  describeSearch,
+  formatTimestamp,
+} from './format.js';
 import { parseMarkdown } from './markdown.js';
 import { renderMarkdown } from './render.js';
+
+/** @typedef {import('./types.js').AgentEvent} AgentEvent */
+/** @typedef {import('./format.js').QueryState} QueryState */
 
 /**
  * @param {string} label
@@ -49,12 +57,72 @@ export class AssistantMessage {
       ariaLive: 'polite',
       ariaBusy: 'true',
     });
+    // What the turn did before answering: memory, then searches.
+    this.activity = el('div', { className: 'activity' });
     this.element = el(
       'article',
       { className: 'message assistant' },
       meta('Assistant', date),
+      this.activity,
       this.body,
     );
+    /** @type {Map<string, QueryState[]>} Each search call's queries, by call id. */
+    this.searches = new Map();
+    // Built once and updated in place, so a focused summary keeps its focus.
+    this.searchSummary = el('summary');
+    this.searchList = el('ul');
+    this.searchDetails = el(
+      'details',
+      { className: 'activity-search' },
+      this.searchSummary,
+      this.searchList,
+    );
+    // Searches stay open while they run and fold to one line once the answer starts.
+    this.collapseOnText = false;
+  }
+
+  /** @param {Extract<AgentEvent, { type: 'recall' }>} event */
+  recall(event) {
+    const line = describeRecall(event);
+    if (!line) return;
+    this.activity.append(el('p', { className: 'activity-line' }, line));
+    this.onRender();
+  }
+
+  /** @param {Extract<AgentEvent, { type: 'search_started' }>} event */
+  searchStarted(event) {
+    this.searches.set(
+      event.callId,
+      event.queries.map((query) => ({ query, status: 'searching' })),
+    );
+    this.collapseOnText = true;
+    this.searchDetails.open = true;
+    if (!this.searchDetails.isConnected)
+      this.activity.append(this.searchDetails);
+    this.renderSearches();
+  }
+
+  /** @param {Extract<AgentEvent, { type: 'search_finished' }>} event */
+  searchFinished(event) {
+    this.searches.set(event.callId, event.queries);
+    this.renderSearches();
+  }
+
+  renderSearches() {
+    const queries = [...this.searches.values()].flat();
+    this.searchSummary.textContent = describeSearch(queries);
+    this.searchList.replaceChildren(
+      ...queries.map((state) =>
+        el(
+          'li',
+          { className: `query ${state.status}` },
+          el('span', { className: 'query-text' }, state.query),
+          ' ',
+          el('span', { className: 'query-status' }, describeQuery(state)),
+        ),
+      ),
+    );
+    this.onRender();
   }
 
   /**
@@ -65,6 +133,10 @@ export class AssistantMessage {
    */
   appendText(delta) {
     this.text += delta;
+    if (this.collapseOnText) {
+      this.searchDetails.open = false;
+      this.collapseOnText = false;
+    }
     this.frame ||= requestAnimationFrame(() => this.render());
   }
 
