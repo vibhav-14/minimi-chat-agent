@@ -109,10 +109,7 @@ for spotting regressions, not a CI gate.
 
 All settings are in `.env.example`. The ones worth knowing:
 
-- `GEMINI_MODEL` (default `gemini-3.6-flash`). On the free tier some newer
-  models accept requests and never answer; each model step therefore times out
-  (no first chunk in 30 s, or not finished in 120 s) and the error names
-  `gemini-3.5-flash-lite` to try.
+
 - `USER_TIMEZONE` is only a fallback: the browser sends its own zone with each
   message.
 - `DATA_DIR` (default `./data`) holds the SQLite database. Delete it to start
