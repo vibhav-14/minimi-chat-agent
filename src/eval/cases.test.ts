@@ -62,6 +62,15 @@ describe('eval cases', () => {
         says('crm-monday', '| Pipedrive Growth | $9 | $39 | increased [5] |'),
       ).toBe(true);
     });
+
+    it('accepts a spaced arrow as the change', () => {
+      expect(
+        says(
+          'crm-monday',
+          '* **Pipedrive Growth:** $9 on Monday → $39 now [5]',
+        ),
+      ).toBe(true);
+    });
   });
 
   it('no-record accepts an honest "nothing that day" answer', () => {

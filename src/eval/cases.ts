@@ -29,7 +29,9 @@ export const EVAL_CASES: EvalCase[] = [
       // Pipedrive lists, so a correct answer must call it a change. Saying
       // "unchanged" while citing a higher price is the failure this catches.
       matches:
-        /Pipedrive[^\n]*\b(chang|increas|rais|up from|went up|higher|→|->|from \$9|was \$9)/i,
+        // Arrows sit outside \b: with spaces around them there is no word
+        // boundary, so "$9 → $39" would never match inside the group.
+        /Pipedrive[^\n]*(\b(chang|increas|rais|up from|went up|higher|from \$9|was \$9)|→|->)/i,
       // The then-and-now rows the prompt asks for carry an arrow either way,
       // so "$9 then → $14 now, unchanged" would pass `matches` alone.
       rejects: /Pipedrive[^\n]*\bunchanged\b/i,
