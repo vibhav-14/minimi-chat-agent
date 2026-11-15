@@ -87,7 +87,10 @@ conversation), a changing fact (it must search and cite) and a rewrite request
 (it must not search). Every check reads the event stream; no model grades
 another, so a failure names what went wrong. The demo's Pipedrive price is
 deliberately stale, so the CRM case also requires the answer to call it a
-change and fails any Pipedrive line that says "unchanged". Here it caught an
+change and fails any Pipedrive line that says "unchanged". Two more checks
+came from reading live answers: a row that says "unchanged" must carry a
+citation, and a row about one product may only cite pages that mention that
+product (a Freshsales page was once cited for a Pipedrive price). Here it caught an
 answer that said "unchanged" while citing a higher price:
 
 ```

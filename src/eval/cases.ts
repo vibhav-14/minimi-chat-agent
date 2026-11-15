@@ -35,6 +35,8 @@ export const EVAL_CASES: EvalCase[] = [
       // The then-and-now rows the prompt asks for carry an arrow either way,
       // so "$9 then → $14 now, unchanged" would pass `matches` alone.
       rejects: /Pipedrive[^\n]*\bunchanged\b/i,
+      citesVerdicts: true,
+      rowSources: ['HubSpot', 'Salesforce', 'Pipedrive', 'Zoho', 'Freshsales'],
     },
   },
   {
@@ -59,6 +61,7 @@ export const EVAL_CASES: EvalCase[] = [
       searches: true,
       cites: true,
       mentions: { names: ['Neon', 'Supabase', 'RDS'], min: 2 },
+      citesVerdicts: true,
     },
   },
   {
