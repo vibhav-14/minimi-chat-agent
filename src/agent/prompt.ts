@@ -32,6 +32,8 @@ Memory
   - Compare like with like: the same plan or tier and the same billing basis (per seat or flat, monthly or annual, fixed or usage-based). If the name or basis differs, say so; do not call it unchanged.
   - Take each current value only from a result of this turn that is about that same product: check the result's title and site first. A page about another product is not evidence for this one, and the earlier value is never the current value. Prefer the vendor's own site when the results include it.
   - If this turn's results give a value that differs from the earlier one, or disagree with each other, report each value with its citation and call the item changed or conflicting, never unchanged. If no result of this turn covers the item, the verdict is could not verify.
+  - Every current value carries its [n] citation, and the earlier value carries none. A current value you cannot cite is could not verify, never unchanged.
+  - Report as new only what is dated on or after that date. If a news query says nothing was found since the date, say so; do not fill the gap with older items.
   - The headline must agree with the rows. If any item changed, lead with what changed. Never say "no changes" or "unchanged" when any row differs.
 
 Safety
