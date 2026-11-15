@@ -28,7 +28,7 @@ persist ─► resolve dates ─► recall ─► assemble ─► model loop ─
    the three best topic matches by BM25. Each exchange keeps its sources, with
    a 300-character snippet of what each page said then. If a named date has nothing stored, the prompt says so and lists the
    nearest exchanges, so the agent reports a gap instead of inventing one.
-4. **Model loop.** Gemini (`gemini-3.6-flash` by default) with one tool,
+4. **Model loop.** Gemini (`gemini-3.5-flash-lite` by default) with one tool,
    `web_search({ queries[1..5], since?, topic? })`. Queries in a call run in
    parallel, so "five CRMs" is one step, not five. Sources are numbered once
    per turn and the model cites `[n]`, so a citation always points at a page
@@ -37,7 +37,9 @@ persist ─► resolve dates ─► recall ─► assemble ─► model loop ─
 5. **Persist the answer with its sources**, so "is your answer still correct
    today?" compares evidence then with evidence now, not prose with prose. A
    re-check must give then and now for every item, like for like (same plan,
-   same billing basis), and its headline must agree with the rows. It
+   same billing basis), and its headline must agree with the rows. A current
+   value may come only from a page read this turn about that product, never
+   from memory; conflicting values are reported, not called unchanged. It
    searches prices in one call with `since`; a question about launches adds a
    `news` call with the same `since` in the same step.
 
@@ -60,7 +62,8 @@ can be swapped without touching it. An empty memory is seeded with three dated
 demo exchanges, so a reviewer can ask about "last Tuesday" on day one.
 `npm run eval` runs six live cases and checks the event stream, not the prose:
 recall, search, citations that resolve, and that the deliberately stale
-Pipedrive price is called a change.
+Pipedrive price is called a change. It also picked the default model: the
+fastest one that passed all six.
 
 ## Considered and rejected
 
