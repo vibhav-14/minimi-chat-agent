@@ -141,9 +141,13 @@ function renderExchange(
   return clean(lines.join('\n'));
 }
 
-/** Stored text must not be able to close the history block and speak outside it. */
+/**
+ * Stored text must not be able to close the history block and speak outside
+ * it. A tag becomes a visible marker, not nothing: deleting it would let
+ * "<recalled_</recalled_history>history>" close up into a new tag.
+ */
 function clean(text: string): string {
-  return text.replace(/<\/?recalled_history>/gi, '');
+  return text.replace(/<\/?recalled_history>/gi, '[tag removed]');
 }
 
 function truncate(text: string, limit: number): string {
