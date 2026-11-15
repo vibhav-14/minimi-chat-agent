@@ -37,7 +37,9 @@ persist ─► resolve dates ─► recall ─► assemble ─► model loop ─
 5. **Persist the answer with its sources**, so "is your answer still correct
    today?" compares evidence then with evidence now, not prose with prose. A
    re-check must give then and now for every item, like for like (same plan,
-   same billing basis), and its headline must agree with the rows.
+   same billing basis), and its headline must agree with the rows. It
+   searches prices in one call with `since`; a question about launches adds a
+   `news` call with the same `since` in the same step.
 
 Everything streams as server-sent events. The UI (plain ES modules, no build
 step) shows what memory found and which searches run before the answer starts.

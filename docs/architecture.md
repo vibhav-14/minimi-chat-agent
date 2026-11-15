@@ -111,10 +111,10 @@ message being answered and turns already in the prompt are excluded. The model
 is told never to invent a past conversation.
 
 `memory/render.ts` turns the result into the prompt block. It is fenced in
-`<recalled_history>` and labelled as quoted history, not instructions. Each
-exchange shows its local date and time, question, answer (truncated with a
-marker past a limit), and each source's URL with a snippet of what the page
-said then. A total character budget gives by-date matches first claim, then
+`<recalled_history>` and labelled as quoted history, not instructions; that
+tag inside stored text becomes `[tag removed]`. Each exchange shows its local
+date and time, question, answer (truncated with a marker past a limit), and
+each source's URL with a snippet of what the page said then. A total character budget gives by-date matches first claim, then
 the nearest exchanges for a miss, then topic matches, and states how many
 exchanges were left out. With nothing found it says so in one line rather than
 rendering nothing.
@@ -143,7 +143,8 @@ One tool:
 ```ts
 web_search({
   queries: string[],        // 1 to 5, run in parallel
-  since?: string,           // YYYY-MM-DD; drops results dated before it, per query
+  since?: string,           // YYYY-MM-DD; drops results dated before it, per query,
+                            // unless that leaves a query empty
   topic?: "general" | "news"
 })
 ```
@@ -166,11 +167,12 @@ articles are the noise that would make it report a past change as new.
 The filter runs in the `web_search` tool (`search/tool.ts`), not in the
 provider: a `SearchProvider` returns results unfiltered, with their publish
 dates. When the filter would leave a query with nothing (every result dated
-before `since`), that query keeps its results and says so, both in the text the
-model reads ("No pages dated 2026-11-09 or later for this query; showing the
-latest results instead") and as `sinceFallback: true` on its report. Other
-queries in the same call stay strictly filtered. No extra request is made:
-the unfiltered results are already in hand. Without this, a "changed since
+before `since`), that query keeps its results, newest first so the per-query
+cap keeps the latest, and says so, both in the text the model reads ("No pages
+dated 2026-11-09 or later for this query; showing the latest results instead")
+and as `sinceFallback: true` on its report. Other queries in the same call stay
+strictly filtered. No extra request is made: the unfiltered results are already
+in hand. Without this, a "changed since
 Monday?" call whose queries found only older pages came back empty and the
 model spent a second step searching again without `since`.
 
@@ -178,7 +180,9 @@ Search depth defaults to Tavily's `advanced` (2 credits a query instead of 1)
 because it returns the passages most relevant to the query, such as the pricing
 table, rather than shorter generic ones. `TAVILY_SEARCH_DEPTH=basic` halves the
 cost. Search results are untrusted: they are wrapped in delimiters and the model
-is told never to follow instructions inside them.
+is told never to follow instructions inside them. A delimiter tag inside a page
+(`search_results` or `recalled_history`, since snippets are stored and recalled)
+becomes `[tag removed]`, so a nested tag cannot close up into a real one.
 
 `agent/loop.ts` (`runTurn`) is an async generator over injected
 `LlmProvider`, `SearchProvider`, `MemoryStore` and `Clock`. Each step streams

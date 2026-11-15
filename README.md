@@ -87,8 +87,8 @@ conversation), a changing fact (it must search and cite) and a rewrite request
 (it must not search). Every check reads the event stream; no model grades
 another, so a failure names what went wrong. The demo's Pipedrive price is
 deliberately stale, so the CRM case also requires the answer to call it a
-change. Here it caught an answer that said "unchanged" while citing a higher
-price:
+change and fails any Pipedrive line that says "unchanged". Here it caught an
+answer that said "unchanged" while citing a higher price:
 
 ```
 FAIL  crm-monday  — Sample 1: a weekday resolved in code, then old prices checked against fresh pages.
