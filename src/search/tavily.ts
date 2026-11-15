@@ -105,13 +105,14 @@ export function createTavilyProvider(options: TavilyOptions): SearchProvider {
           },
         );
       }
-      return applySince(parsed.data.results.map(toResult), request.since);
+      return parsed.data.results.map(toResult);
     },
   };
 }
 
 function requestBody(request: SearchRequest, searchDepth: TavilySearchDepth) {
-  // `since` is deliberately not sent as start_date; see applySince.
+  // No start_date: Tavily's date filter drops undated pages too, so the
+  // web_search tool applies `since` to the results (see applySince in tool.ts).
   return {
     query: request.query,
     search_depth: searchDepth,
@@ -132,30 +133,6 @@ function toResult(
     ...(publishedDate && { publishedDate }),
     ...(raw.score !== undefined && { score: raw.score }),
   };
-}
-
-/**
- * "Since" keeps results dated on or after the date, then undated results;
- * results dated before it are dropped.
- *
- * Tavily's own filter_by_published_date also drops every undated result, and
- * pricing and product pages, the pages that answer "has the price changed
- * since Monday?", usually carry no publish date. They show the current state,
- * which the model compares with what it said then. Dated material from before
- * the date is the noise to remove: an old article about a past price change
- * is what would lead the model to report a stale change as new.
- */
-function applySince(
-  results: SearchResult[],
-  since: string | undefined,
-): SearchResult[] {
-  if (!since) return results;
-  const kept = results.filter(
-    (result) => !result.publishedDate || result.publishedDate >= since,
-  );
-  const dated = kept.filter((result) => result.publishedDate);
-  const undated = kept.filter((result) => !result.publishedDate);
-  return [...dated, ...undated];
 }
 
 /** Tavily's dates come in more than one format; anything unparseable counts as undated. */

@@ -2,8 +2,6 @@ export type SearchTopic = 'general' | 'news';
 
 export interface SearchRequest {
   query: string;
-  /** YYYY-MM-DD. Prefer material from this date on; see the provider for the exact rule. */
-  since?: string;
   topic?: SearchTopic;
   maxResults?: number;
   signal?: AbortSignal;
@@ -18,7 +16,11 @@ export interface SearchResult {
   score?: number;
 }
 
-/** A web search backend. The agent depends on this, never on a vendor API. */
+/**
+ * A web search backend. The agent depends on this, never on a vendor API.
+ * It returns results unfiltered by date, with `publishedDate` where known;
+ * the web_search tool applies `since`.
+ */
 export interface SearchProvider {
   search(request: SearchRequest): Promise<SearchResult[]>;
 }
