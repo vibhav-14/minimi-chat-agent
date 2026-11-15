@@ -13,7 +13,7 @@
  */
 
 /**
- * @typedef {{ query: string, status: 'ok', sources: number[] }
+ * @typedef {{ query: string, status: 'ok', sources: number[], sinceFallback?: true }
  *   | { query: string, status: 'failed', kind: string, message: string }} QueryReport
  */
 

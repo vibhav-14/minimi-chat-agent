@@ -132,6 +132,20 @@ describe('describeQuery', () => {
   ])('describes %j', (state, expected) => {
     expect(describeQuery(state)).toBe(expected);
   });
+
+  // Otherwise older pages shown for a "since" search read as news since then.
+  it('says when a since search showed older results instead', () => {
+    const state = {
+      query: 'a',
+      status: 'ok' as const,
+      sources: [1, 2],
+      sinceFallback: true as const,
+    };
+
+    expect(describeQuery(state, '2026-11-09', 'en-GB')).toBe(
+      '2 latest results (none since 9 Nov 2026)',
+    );
+  });
 });
 
 describe('describeSearch', () => {

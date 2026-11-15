@@ -120,7 +120,7 @@ export class AssistantMessage {
       this.body,
       this.sourceList,
     );
-    /** @type {Map<string, QueryState[]>} Each search call's queries, by call id. */
+    /** @type {Map<string, { since?: string, queries: QueryState[] }>} Each search call, by call id. */
     this.searches = new Map();
     // Built once and updated in place, so a focused summary keeps its focus.
     this.searchSummary = el('summary');
@@ -185,10 +185,10 @@ export class AssistantMessage {
   /** @param {Extract<AgentEvent, { type: 'search_started' }>} event */
   searchStarted(event) {
     this.stopWaiting();
-    this.searches.set(
-      event.callId,
-      event.queries.map((query) => ({ query, status: 'searching' })),
-    );
+    this.searches.set(event.callId, {
+      since: event.since,
+      queries: event.queries.map((query) => ({ query, status: 'searching' })),
+    });
     this.collapseOnText = true;
     this.searchDetails.open = true;
     if (!this.searchDetails.isConnected) this.addActivity(this.searchDetails);
@@ -197,25 +197,34 @@ export class AssistantMessage {
 
   /** @param {Extract<AgentEvent, { type: 'search_finished' }>} event */
   searchFinished(event) {
-    this.searches.set(event.callId, event.queries);
+    const since = this.searches.get(event.callId)?.since;
+    this.searches.set(event.callId, { since, queries: event.queries });
     this.renderSearches();
-    const queries = [...this.searches.values()].flat();
-    if (queries.every((query) => query.status !== 'searching')) {
+    if (this.allQueries().every((query) => query.status !== 'searching')) {
       this.wait('Reading the results');
     }
   }
 
+  allQueries() {
+    return [...this.searches.values()].flatMap((search) => search.queries);
+  }
+
   renderSearches() {
-    const queries = [...this.searches.values()].flat();
-    this.searchSummary.textContent = describeSearch(queries);
+    this.searchSummary.textContent = describeSearch(this.allQueries());
     this.searchList.replaceChildren(
-      ...queries.map((state) =>
-        el(
-          'li',
-          { className: `query ${state.status}` },
-          el('span', { className: 'query-text' }, state.query),
-          ' ',
-          el('span', { className: 'query-status' }, describeQuery(state)),
+      ...[...this.searches.values()].flatMap(({ since, queries }) =>
+        queries.map((state) =>
+          el(
+            'li',
+            { className: `query ${state.status}` },
+            el('span', { className: 'query-text' }, state.query),
+            ' ',
+            el(
+              'span',
+              { className: 'query-status' },
+              describeQuery(state, since),
+            ),
+          ),
         ),
       ),
     );
