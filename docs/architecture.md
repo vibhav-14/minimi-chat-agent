@@ -153,8 +153,9 @@ the five CRMs") in a single step. Results are deduplicated by URL, trimmed to a
 budget (15 results per call shared across its queries, 1,500 characters each)
 and numbered. Numbers are per turn: a `SourceRegistry` gives each page one
 number across every search in the turn, and its list is stored with the answer.
-The model cites by number; the server maps numbers back to URLs, so a citation
-always points at a page that was actually read.
+The model cites by number. The server sends the numbered list as the `sources`
+event and stores it with the answer; the browser links each `[n]` to its entry,
+so a citation can only point at a page that was actually read.
 
 `since` drops results dated before it but keeps undated ones. Tavily's own
 date filter drops undated results too, and pricing pages, the pages that answer
@@ -230,16 +231,16 @@ now.
 message. Each server-sent event is named after its `type`
 (`agent/events.ts`), in this order:
 
-| Event             | Carries                                                                            |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| `start`           | conversation id and the stored user message id                                     |
-| `recall`          | date phrases and the local days they mean, exchanges found, misses                 |
-| `search_started`  | call id, queries, `since`                                                          |
-| `search_finished` | per-query status (sources, `sinceFallback`, or failure), sources added             |
-| `token`           | a text delta of the answer                                                         |
-| `sources`         | every numbered source the answer may cite                                          |
-| `done`            | the stored answer's id                                                             |
-| `error`           | kind (`auth`, `rate_limit`, `quota`, `config`, `other`) and a message for the user |
+| Event             | Carries                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `start`           | conversation id and the stored user message id                                                |
+| `recall`          | date phrases and the local days they mean, exchanges found, misses                            |
+| `search_started`  | call id, queries, `since`                                                                     |
+| `search_finished` | per-query status (sources, `sinceFallback`, or failure), sources added                        |
+| `token`           | a text delta of the answer                                                                    |
+| `sources`         | every numbered source the answer may cite                                                     |
+| `done`            | the stored answer's id                                                                        |
+| `error`           | kind (`auth`, `rate_limit`, `quota`, `timeout`, `config`, `other`) and a message for the user |
 
 The server starts without API keys: health, the page and the history routes
 work, and chat answers with the configuration message as an `error` event.
@@ -253,7 +254,7 @@ src/
   app.ts               route factory (createApp): SSE chat endpoint, static UI
   server.ts            entry point: reads env, opens memory, seeds, listens
   memory/
-    store.ts           SQLite persistence (node:sqlite), exchanges, search
+    store.ts           SQLite persistence (node:sqlite), exchanges, rows for ranking
     rank.ts            tokenizer, stemmer, BM25 scoring (pure)
     temporal.ts        date phrase -> local day ranges
     recall.ts          date + topic retrieval
@@ -273,8 +274,12 @@ src/
     loop.ts            the agent loop
     events.ts          typed stream events (token, search, sources, done)
     testing.ts         scripted fake model and search for tests
-public/                 chat UI (no build step)
-scripts/                seed, try:search, try:chat
+  eval/
+    cases.ts           live eval cases: the sample questions and edge cases
+    checks.ts          deterministic checks over a turn's event stream
+  ui/                  tests for the browser modules (Markdown, SSE, formatting)
+public/                 chat UI: plain ES modules, no build step
+scripts/                eval, seed, try:search, try:chat
 ```
 
 Boundaries are interfaces: `LlmProvider`, `SearchProvider`, `Clock`. The agent
@@ -307,8 +312,13 @@ fake and exercises the real SQL.
 - Sample questions: each one runs through the loop over the seeded demo
   history at a fixed Wednesday, and the test checks the model's prompt holds
   the right earlier exchange.
+- Browser: the Markdown reader, the SSE parser and the formatting helpers
+  (`src/ui/`).
 - Live: `npm run try:chat -- "question"` runs one turn against the real
-  providers. Live evals are not built yet.
+  providers. `npm run eval` runs six cases live (the sample questions, a date
+  with no record, a changing fact, a no-search request) and checks each turn's
+  events: recall, search, resolving citations, and the verdict on the stale
+  Pipedrive price. It is paced for the free tier and is not a CI gate.
 
 ## Reviewing time-dependent behaviour
 
