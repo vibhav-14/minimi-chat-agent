@@ -138,7 +138,12 @@ function renderExchange(
       }),
     );
   }
-  return lines.join('\n');
+  return clean(lines.join('\n'));
+}
+
+/** Stored text must not be able to close the history block and speak outside it. */
+function clean(text: string): string {
+  return text.replace(/<\/?recalled_history>/gi, '');
 }
 
 function truncate(text: string, limit: number): string {
