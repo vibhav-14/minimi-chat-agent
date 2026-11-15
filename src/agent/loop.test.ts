@@ -141,6 +141,54 @@ describe('runTurn', () => {
     expect(answer?.sources).toEqual([source]);
   });
 
+  // The live bug: a "changed since Monday?" search found only older pages,
+  // came back empty, and cost the turn a second search step.
+  it('gives the model sources in one step when every result predates since', async () => {
+    const { search, requests: searches } = tableSearch({
+      'Neon pricing': [
+        {
+          title: 'Neon cuts prices',
+          url: 'https://news.test/neon',
+          content: 'Launch plan now $19 a month.',
+          publishedDate: '2026-08-01',
+        },
+      ],
+    });
+    const { events, requests } = turn(
+      [
+        [
+          searchCall('c1', { queries: ['Neon pricing'], since: '2026-11-09' }),
+          stop,
+        ],
+        [text('No change since Monday; Launch is $19 a month [1].'), stop],
+      ],
+      search,
+    );
+
+    const all = await collectEvents(events);
+
+    expect(searches).toHaveLength(1);
+    expect(requests).toHaveLength(2);
+    expect(all.find((event) => event.type === 'search_finished')).toMatchObject(
+      {
+        queries: [
+          {
+            query: 'Neon pricing',
+            status: 'ok',
+            sources: [1],
+            sinceFallback: true,
+          },
+        ],
+      },
+    );
+    const [result] = toolResultText(requests, 1);
+    expect(result?.content).toContain(
+      'No pages dated 2026-11-09 or later for this query; showing the latest results instead',
+    );
+    expect(result?.content).toContain('[1] Neon cuts prices');
+    expect(storedMessages()[1]?.sources).toHaveLength(1);
+  });
+
   // Sequential searches would double the wait on a five-way fan-out.
   it('runs every tool call of a step concurrently', async () => {
     let started = 0;

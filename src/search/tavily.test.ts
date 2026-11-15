@@ -71,19 +71,6 @@ describe('Tavily request', () => {
       include_published_date: true,
     });
   });
-
-  // Tavily's date filter would drop undated pricing pages; `since` is applied
-  // to the response instead (see the next block).
-  it('does not pass since to Tavily as a date filter', async () => {
-    const { calls, fetchFn } = fakeFetch(() => json({ results: [] }));
-
-    await provider(fetchFn).search({ query: 'q', since: '2026-11-09' });
-
-    const body = sentBody(calls[0]);
-    expect(body).not.toHaveProperty('start_date');
-    expect(body).not.toHaveProperty('filter_by_published_date');
-    expect(body).toMatchObject({ topic: 'general' });
-  });
 });
 
 describe('Tavily response', () => {
@@ -140,33 +127,6 @@ describe('Tavily response', () => {
     ]);
   });
 
-  it('with since, drops results dated before it, keeps undated ones and puts dated ones first', async () => {
-    const { fetchFn } = fakeFetch(() => json({ results }));
-
-    const found = await provider(fetchFn).search({
-      query: 'q',
-      since: '2026-11-09',
-    });
-
-    expect(found.map((result) => result.title)).toEqual([
-      'Launch post',
-      'Pricing page',
-    ]);
-  });
-
-  it('keeps a result published on the since date itself', async () => {
-    const { fetchFn } = fakeFetch(() =>
-      json({ results: [{ ...results[0], published_date: '2026-11-09' }] }),
-    );
-
-    const found = await provider(fetchFn).search({
-      query: 'q',
-      since: '2026-11-09',
-    });
-
-    expect(found).toHaveLength(1);
-  });
-
   it('treats an unparseable date as undated', async () => {
     const { fetchFn } = fakeFetch(() =>
       json({
@@ -174,10 +134,7 @@ describe('Tavily response', () => {
       }),
     );
 
-    const [found] = await provider(fetchFn).search({
-      query: 'q',
-      since: '2026-11-09',
-    });
+    const [found] = await provider(fetchFn).search({ query: 'q' });
 
     expect(found?.publishedDate).toBeUndefined();
   });

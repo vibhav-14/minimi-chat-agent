@@ -143,7 +143,7 @@ One tool:
 ```ts
 web_search({
   queries: string[],        // 1 to 5, run in parallel
-  since?: string,           // YYYY-MM-DD; drops results dated before it
+  since?: string,           // YYYY-MM-DD; drops results dated before it, per query
   topic?: "general" | "news"
 })
 ```
@@ -161,6 +161,17 @@ date filter drops undated results too, and pricing pages, the pages that answer
 "has the price changed since Monday?", are usually undated. They show the
 current state, which the model compares with what it said then; old dated
 articles are the noise that would make it report a past change as new.
+
+The filter runs in the `web_search` tool (`search/tool.ts`), not in the
+provider: a `SearchProvider` returns results unfiltered, with their publish
+dates. When the filter would leave a query with nothing (every result dated
+before `since`), that query keeps its results and says so, both in the text the
+model reads ("No pages dated 2026-11-09 or later for this query; showing the
+latest results instead") and as `sinceFallback: true` on its report. Other
+queries in the same call stay strictly filtered. No extra request is made:
+the unfiltered results are already in hand. Without this, a "changed since
+Monday?" call whose queries found only older pages came back empty and the
+model spent a second step searching again without `since`.
 
 Search depth defaults to Tavily's `advanced` (2 credits a query instead of 1)
 because it returns the passages most relevant to the query, such as the pricing
@@ -224,7 +235,7 @@ message. Each server-sent event is named after its `type`
 | `start`           | conversation id and the stored user message id                                     |
 | `recall`          | date phrases and the local days they mean, exchanges found, misses                 |
 | `search_started`  | call id, queries, `since`                                                          |
-| `search_finished` | per-query status (sources or failure), sources added                               |
+| `search_finished` | per-query status (sources, `sinceFallback`, or failure), sources added             |
 | `token`           | a text delta of the answer                                                         |
 | `sources`         | every numbered source the answer may cite                                          |
 | `done`            | the stored answer's id                                                             |
