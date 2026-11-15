@@ -248,9 +248,17 @@ function snippetOf(content: string): string {
     : `${flat.slice(0, SNIPPET_CHARS).trimEnd()}…`;
 }
 
-/** A page must not be able to close the results block and speak outside it. */
+/**
+ * A page must not be able to close the results block and speak outside it,
+ * nor, through a stored snippet or title, the recalled history block. A tag
+ * becomes a visible marker, not nothing: deleting it would let
+ * "<search_</search_results>results>" close up into a new tag.
+ */
 function clean(text: string): string {
-  return text.replace(/<\/?search_results>/gi, '');
+  return text.replace(
+    /<\/?(?:search_results|recalled_history)>/gi,
+    '[tag removed]',
+  );
 }
 
 function trim(text: string): string {
