@@ -63,6 +63,17 @@ describe('eval cases', () => {
       ).toBe(true);
     });
 
+    // A correct live headline failed: "unchanged" there belongs to the
+    // products named after Pipedrive, not to Pipedrive.
+    it('passes a headline where "unchanged" is about the other products', () => {
+      expect(
+        says(
+          'crm-monday',
+          'Pipedrive Growth pricing is listed significantly higher than the $9 rate noted on Monday, while HubSpot, Salesforce, and Zoho CRM pricing remain unchanged.',
+        ),
+      ).toBe(true);
+    });
+
     it('accepts a spaced arrow as the change', () => {
       expect(
         says(
