@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EVAL_CASES } from './cases.js';
 import { check, summarize } from './checks.js';
 
-const ANSWER_CHECKS = ['says', 'does not say'];
+const ANSWER_CHECKS = ['says', 'does not say', 'no row says'];
 
 /** Whether a case's checks on the answer text all pass for this answer. */
 function says(caseId: string, answer: string): boolean {
@@ -63,16 +63,17 @@ describe('eval cases', () => {
       ).toBe(true);
     });
 
-    // A correct live headline failed: "unchanged" there belongs to the
-    // products named after Pipedrive, not to Pipedrive.
-    it('passes a headline where "unchanged" is about the other products', () => {
-      expect(
-        says(
-          'crm-monday',
-          'Pipedrive Growth pricing is listed significantly higher than the $9 rate noted on Monday, while HubSpot, Salesforce, and Zoho CRM pricing remain unchanged.',
-        ),
-      ).toBe(true);
-    });
+    // Two correct live headlines failed a whole-answer pattern: "unchanged"
+    // there is said of the other products, not of Pipedrive.
+    it.each([
+      'Pipedrive Growth pricing is listed significantly higher than the $9 rate noted on Monday, while HubSpot, Salesforce, and Zoho CRM pricing remain unchanged.',
+      "**Pipedrive Growth pricing differs from Monday's quote, while the other four CRMs remain unchanged in price.**\n\n| **Pipedrive Growth** | $9 | $34–$39 [6][7] | **Changed** |",
+    ])(
+      'passes a headline where "unchanged" is about the others: %s',
+      (answer) => {
+        expect(says('crm-monday', answer)).toBe(true);
+      },
+    );
 
     it('accepts a spaced arrow as the change', () => {
       expect(
