@@ -37,7 +37,9 @@ persist ─► resolve dates ─► recall ─► assemble ─► model loop ─
 5. **Persist the answer with its sources**, so "is your answer still correct
    today?" compares evidence then with evidence now, not prose with prose. A
    re-check must give then and now for every item, like for like (same plan,
-   same billing basis), and its headline must agree with the rows. It
+   same billing basis), and its headline must agree with the rows. A current
+   value may come only from a page read this turn about that product, never
+   from memory; conflicting values are reported, not called unchanged. It
    searches prices in one call with `since`; a question about launches adds a
    `news` call with the same `since` in the same step.
 
@@ -83,6 +85,9 @@ Pipedrive price is called a change.
 - **A disclaimer inside seeded answers.** Tried it: "prices are illustrative"
   made the model call a changed price unchanged. A live audit caught it, the
   eval now fails that answer, and only the conversation title says "Demo".
+- **A faster default model.** `gemini-3.5-flash-lite` passed the eval at a
+  4 s median, but in the browser it re-checked one answer without searching
+  and cited remembered sources as fresh. Correct beats quick.
 
 ## With another week
 
