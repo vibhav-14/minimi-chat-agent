@@ -183,13 +183,15 @@ send its first chunk within 30 s and finish within 120 s, or the adapter
 aborts the request and the error names another `GEMINI_MODEL` to try. A client
 disconnect aborts the model request and the searches.
 
-The model is Gemini (`GEMINI_MODEL`, default `gemini-3.8-flash`) through the
+The model is Gemini (`GEMINI_MODEL`, default `gemini-3.6-flash`, which
+answered reliably on the free tier where `gemini-3.8-flash` did not) through the
 `@google/genai` SDK's `models.generateContentStream`, the stateless API: each
 request carries the whole context. Google now recommends its Interactions API
 for new projects, whose main gain is server-side conversation state; this app
 already owns that state (it is the memory), so a second copy at Google would
-add nothing. Thinking is set to `low`, the least this model accepts, because
-every thinking token delays the first visible one. Function calls are replayed
+add nothing. Thinking is set to `low` because every thinking token delays the
+first visible one; not `minimal`, which some Gemini 3 models reject, so a
+`GEMINI_MODEL` override keeps working. Function calls are replayed
 with their thought signatures, which Gemini 3 models require.
 
 ### 6. Persist the answer

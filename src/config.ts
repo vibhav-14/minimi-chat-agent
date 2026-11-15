@@ -6,7 +6,9 @@ import {
 } from './search/tavily.js';
 
 const DEFAULT_PORT = 3000;
-const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+// On the free tier, tested 2026-11-11: gemini-3.6-flash answered in 4 s,
+// while gemini-3.8-flash accepted requests and never responded.
+const DEFAULT_GEMINI_MODEL = 'gemini-3.6-flash';
 const DEFAULT_DATA_DIR = './data';
 
 /** True for an IANA zone name this runtime knows, such as Asia/Kolkata. */
