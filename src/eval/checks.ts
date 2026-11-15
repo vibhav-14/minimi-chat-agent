@@ -28,6 +28,12 @@ export interface Expectation {
    */
   rejects?: RegExp;
   /**
+   * No table row or list item may match this. Narrower than `rejects`: a
+   * headline such as "Pipedrive differs, while the other four remain
+   * unchanged" is correct, and only a row says "unchanged" of one item.
+   */
+  rejectsInRows?: RegExp;
+  /**
    * Every table row or list item that says "unchanged" must carry a [n]. A
    * live answer read "Salesforce: $165, unchanged" with no source: the
    * remembered value passed off as checked.
@@ -234,6 +240,19 @@ export function check(turn: TurnSummary, expect: Expectation): CheckResult[] {
       name: 'does not say',
       pass: !expect.rejects.test(turn.answer),
       detail: String(expect.rejects),
+    });
+  }
+
+  if (expect.rejectsInRows) {
+    const pattern = expect.rejectsInRows;
+    const bad = itemLines(turn.answer).filter((line) => pattern.test(line));
+    results.push({
+      name: 'no row says',
+      pass: bad.length === 0,
+      detail:
+        bad.length === 0
+          ? String(pattern)
+          : `${String(pattern)} in: ${bad.map(excerpt).join(' / ')}`,
     });
   }
 
