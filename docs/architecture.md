@@ -176,6 +176,12 @@ in hand. Without this, a "changed since
 Monday?" call whose queries found only older pages came back empty and the
 model spent a second step searching again without `since`.
 
+A `news` query is the exception and never falls back: an old pricing page
+still shows today's price, but old news is only old. A live answer listed a
+restructuring from two weeks earlier under "since Monday" this way. Such a
+query now reads "No news dated 2026-11-09 or later", worded as a finding so
+the model reports it and does not search again.
+
 Search depth defaults to Tavily's `advanced` (2 credits a query instead of 1)
 because it returns the passages most relevant to the query, such as the pricing
 table, rather than shorter generic ones. `TAVILY_SEARCH_DEPTH=basic` halves the
