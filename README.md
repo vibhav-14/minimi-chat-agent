@@ -35,9 +35,10 @@ what is missing.
 On first start, an empty memory is seeded with three demo conversations, dated
 relative to today: the most recent Monday (a 5-CRM shortlist with prices), the
 day "last Tuesday" points to (Postgres hosting prices) and 3 November (which
-Node.js version to use). They appear in the sidebar titled "Demo:" and say they
-are seeded. One price is deliberately stale, so "has anything changed?" always
-has something real to find. Ask the questions above in a new chat.
+Node.js version to use). They appear in the sidebar titled "Demo:"; the
+messages inside read like a real exchange, so the agent compares against them
+as it would against any earlier answer. One price is deliberately stale, so
+"has anything changed?" always has something real to find. Ask the questions above in a new chat.
 
 ## How it works, in short
 

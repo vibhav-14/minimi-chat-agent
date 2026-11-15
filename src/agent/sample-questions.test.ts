@@ -41,6 +41,15 @@ async function promptFor(message: string): Promise<string> {
   return promptText(requests[0]);
 }
 
+/** The <recalled_history> block of a prompt, which must be present. */
+function recalledHistory(prompt: string): string {
+  const start = prompt.indexOf('<recalled_history>');
+  const end = prompt.indexOf('</recalled_history>');
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return prompt.slice(start, end);
+}
+
 describe('sample questions reach the model with the right history', () => {
   it('"On Monday we shortlisted 5 CRM tools..." recalls Monday\'s shortlist with prices and evidence', async () => {
     const prompt = await promptFor(
@@ -48,10 +57,13 @@ describe('sample questions reach the model with the right history', () => {
     );
 
     expect(prompt).toContain('Stored for "Monday" (Monday 9 November 2026):');
+    expect(prompt).toContain('3. Pipedrive Growth: $9 [3]');
     expect(prompt).toContain('5. Freshsales Growth: $9 [5]');
     expect(prompt).toContain(
       '- [3] Pipedrive pricing: https://www.pipedrive.com/en/pricing\n  Page then said: "Growth: $9 per seat',
     );
+    // A disclaimer here led the model to call a changed price "unchanged".
+    expect(recalledHistory(prompt)).not.toMatch(/demo|seeded|illustrative/i);
   });
 
   it('"What did I ask you on 3 November?" recalls the 3 November exchange', async () => {
@@ -63,7 +75,7 @@ describe('sample questions reach the model with the right history', () => {
       'Stored for "3 November" (Tuesday 3 November 2026):',
     );
     expect(prompt).toContain(
-      'User: (Demo) Which Node.js version should a new project use today?',
+      'User: Which Node.js version should a new project use today?',
     );
   });
 

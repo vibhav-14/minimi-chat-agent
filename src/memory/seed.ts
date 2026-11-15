@@ -6,10 +6,9 @@ import { calendarDayAt, resolveTimeReferences } from './temporal.js';
 const HOUR_MS = 60 * 60 * 1000;
 const ANSWER_DELAY_MS = 40 * 1000;
 
-// Shown to the model in recalled history and to a person reading the answer.
-const DEMO_NOTE =
-  '(Seeded demo history: inserted on first start so the sample questions have something to recall. Prices are illustrative, not checked.)';
-const DEMO_QUESTION = '(Demo) ';
+// Only the title marks a seeded conversation, for the person in the sidebar.
+// The stored question and answer stay plain: a disclaimer in them reaches the
+// model through recalled history and led it to skip comparing old values.
 const DEMO_TITLE = 'Demo: ';
 
 interface DemoExchange {
@@ -26,9 +25,7 @@ const CRM: DemoExchange = {
   // Pipedrive's $9 is deliberately stale: below any price Pipedrive has listed
   // for the Growth plan in recent years, so "has any of them changed pricing?"
   // always finds at least one change to report.
-  answer: `${DEMO_NOTE}
-
-Five CRMs that suit a 20-person sales team, price per seat per month, billed annually:
+  answer: `Five CRMs that suit a 20-person sales team, price per seat per month, billed annually:
 
 1. HubSpot Sales Hub Professional: $90 [1]
 2. Salesforce Sales Cloud Enterprise: $165 [2]
@@ -80,9 +77,7 @@ const POSTGRES: DemoExchange = {
   title: 'Postgres hosting options',
   question:
     'What are good managed Postgres hosting options for a small SaaS app, and what do they cost?',
-  answer: `${DEMO_NOTE}
-
-Three good fits for a small SaaS app:
+  answer: `Three good fits for a small SaaS app:
 
 1. Neon Launch: $19 a month, serverless with branching and scale to zero [1]
 2. Supabase Pro: $25 a month per project, Postgres plus auth and storage [2]
@@ -117,9 +112,7 @@ Neon or Supabase are the quickest start; RDS gives the most control.`,
 const NODE: DemoExchange = {
   title: 'Current Node.js LTS',
   question: 'Which Node.js version should a new project use today?',
-  answer: `${DEMO_NOTE}
-
-Use the current Active LTS line, Node.js 24 ("Krypton"), which gets fixes and security updates until April 2028 [1]. Odd-numbered releases never become LTS, so skip them for production.`,
+  answer: `Use the current Active LTS line, Node.js 24 ("Krypton"), which gets fixes and security updates until April 2028 [1]. Odd-numbered releases never become LTS, so skip them for production.`,
   sources: [
     {
       n: 1,
@@ -184,7 +177,7 @@ function insert(
   store.appendMessage({
     conversationId: id,
     role: 'user',
-    content: DEMO_QUESTION + exchange.question,
+    content: exchange.question,
     timeZone,
     createdAt: askedAt,
   });
