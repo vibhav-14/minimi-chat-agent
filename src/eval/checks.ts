@@ -20,6 +20,12 @@ export interface Expectation {
   mentions?: { names: string[]; min: number };
   /** The answer must match this, e.g. saying there is no record of a date. */
   matches?: RegExp;
+  /**
+   * The answer must not match this. `matches` alone can pass a wrong answer
+   * that happens to contain the right words, such as a row with an arrow
+   * that still ends "unchanged".
+   */
+  rejects?: RegExp;
 }
 
 /** A turn's events reduced to what the checks and the report need. */
@@ -188,6 +194,14 @@ export function check(turn: TurnSummary, expect: Expectation): CheckResult[] {
       name: 'says',
       pass: expect.matches.test(turn.answer),
       detail: String(expect.matches),
+    });
+  }
+
+  if (expect.rejects) {
+    results.push({
+      name: 'does not say',
+      pass: !expect.rejects.test(turn.answer),
+      detail: String(expect.rejects),
     });
   }
 

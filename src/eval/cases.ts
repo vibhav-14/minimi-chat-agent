@@ -30,6 +30,9 @@ export const EVAL_CASES: EvalCase[] = [
       // "unchanged" while citing a higher price is the failure this catches.
       matches:
         /Pipedrive[^\n]*\b(chang|increas|rais|up from|went up|higher|→|->|from \$9|was \$9)/i,
+      // The then-and-now rows the prompt asks for carry an arrow either way,
+      // so "$9 then → $14 now, unchanged" would pass `matches` alone.
+      rejects: /Pipedrive[^\n]*\bunchanged\b/i,
     },
   },
   {
