@@ -42,9 +42,11 @@ export const STEP_TIMEOUT_MS = 120_000;
 /** Suggested in the timeout message: it answered fastest on the free tier. */
 const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
-// Low is the least thinking gemini-3.8-flash accepts (it rejects `minimal`);
-// the default is medium. A chat reply that mostly reads search results gains
-// little from more, and every thinking token delays the first visible one.
+// Low, not the SDK default of medium: a chat reply that mostly reads search
+// results gains little from more, and every thinking token delays the first
+// visible one. The default model, gemini-3.6-flash, ran a live turn with it.
+// Not `minimal`: some Gemini 3 models (gemini-3.8-flash) reject it, and low
+// keeps any GEMINI_MODEL override working.
 const THINKING_LEVEL = ThinkingLevel.LOW;
 
 /**

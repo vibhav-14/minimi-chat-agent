@@ -44,7 +44,7 @@ describe('loadConfig', () => {
     const config = loadConfig(keys);
 
     expect(config.port).toBe(3000);
-    expect(config.geminiModel).toBe('gemini-3.8-flash');
+    expect(config.geminiModel).toBe('gemini-3.6-flash');
     expect(config.dataDir).toBe('./data');
     expect(config.tavilySearchDepth).toBe('advanced');
     // The system zone differs per machine; what matters is that one is always set.
