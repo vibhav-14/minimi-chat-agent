@@ -146,6 +146,94 @@ describe('check', () => {
   });
 });
 
+describe('check: re-check rows carry their own evidence', () => {
+  const page = (n: number, title: string, host: string) => ({
+    n,
+    title,
+    url: `https://${host}/pricing`,
+  });
+  const turnOf = (answer: string) =>
+    summarize(
+      timed([
+        { type: 'token', text: answer },
+        {
+          type: 'sources',
+          sources: [
+            page(1, 'Sales Software Pricing | HubSpot', 'hubspot.com'),
+            page(2, 'Pipedrive Pricing 2026', 'g2.com'),
+            page(3, 'Freshsales CRM Review', 'business.com'),
+          ],
+        },
+        { type: 'done', messageId: 'a1' },
+      ]),
+      1,
+    );
+
+  // The live answer: "Salesforce | $165 | $165 | Unchanged", no source.
+  it('fails an "unchanged" row with no citation, and quotes the row', () => {
+    const turn = turnOf(
+      [
+        'Pipedrive changed [2]; the rest are unchanged.',
+        '| Tool | Then | Now | Verdict |',
+        '| --- | --- | --- | --- |',
+        '| HubSpot | $90 | $90 [1] | Unchanged |',
+        '| Salesforce | $165 | $165 | Unchanged |',
+      ].join('\n'),
+    );
+
+    expect(check(turn, { citesVerdicts: true }).at(-1)).toMatchObject({
+      name: 'cites every unchanged verdict',
+      pass: false,
+      detail: 'no citation: | Salesforce | $165 | $165 | Unchanged |',
+    });
+  });
+
+  it('passes cited rows, and ignores the uncited headline sentence', () => {
+    const turn = turnOf(
+      [
+        'The rest are unchanged.',
+        '- HubSpot: $90 then, $90 now [1], unchanged',
+      ].join('\n'),
+    );
+
+    expect(check(turn, { citesVerdicts: true }).at(-1)).toMatchObject({
+      pass: true,
+    });
+  });
+
+  // The live answer put a Freshsales page's $9 in the Pipedrive row.
+  it('fails a row that cites a page about another item', () => {
+    const turn = turnOf(
+      [
+        '| Pipedrive | $9 [3] | $39 [2] | Unchanged |',
+        '| HubSpot | $90 | $90 [1] | Unchanged |',
+      ].join('\n'),
+    );
+
+    expect(
+      check(turn, { rowSources: ['Pipedrive', 'HubSpot'] }).at(-1),
+    ).toMatchObject({
+      name: 'row sources match their item',
+      pass: false,
+      detail: '[3] (Freshsales CRM Review) cited for Pipedrive',
+    });
+  });
+
+  it('passes rows citing their own pages, and skips lines naming two items', () => {
+    const turn = turnOf(
+      [
+        '- Pipedrive and HubSpot both changed [3].',
+        '| Pipedrive | $9 | $39 [2] | Changed |',
+        '| HubSpot | $90 | $90 [1] | Unchanged |',
+      ].join('\n'),
+    );
+
+    expect(
+      check(turn, { rowSources: ['Pipedrive', 'HubSpot'] }).at(-1),
+    ).toMatchObject({ pass: true });
+  });
+});
+
 describe('check: a date with nothing stored', () => {
   const recallMiss = (misses: string[]) =>
     summarize(timed([{ type: 'recall', dates: [], exchanges: 3, misses }]), 1);

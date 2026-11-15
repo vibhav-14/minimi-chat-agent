@@ -2,6 +2,7 @@
 // every check reads the event stream, so a failure names exactly what went
 // wrong (no recall, no search, a citation pointing at nothing).
 import type { AgentEvent } from '../agent/events.js';
+import type { Source } from '../search/sources.js';
 
 /** What one eval case expects of a turn. Unset fields are not checked. */
 export interface Expectation {
@@ -26,6 +27,19 @@ export interface Expectation {
    * that still ends "unchanged".
    */
   rejects?: RegExp;
+  /**
+   * Every table row or list item that says "unchanged" must carry a [n]. A
+   * live answer read "Salesforce: $165, unchanged" with no source: the
+   * remembered value passed off as checked.
+   */
+  citesVerdicts?: boolean;
+  /**
+   * In a table row or list item naming exactly one of these, every cited
+   * source must mention that name in its title, URL or snippet. Live answers
+   * cited a Freshsales page for a Pipedrive price, and reused the numbers of
+   * remembered sources, which point at other pages this turn.
+   */
+  rowSources?: string[];
 }
 
 /** A turn's events reduced to what the checks and the report need. */
@@ -36,6 +50,8 @@ export interface TurnSummary {
   searches: number;
   queries: string[];
   sourceNumbers: number[];
+  /** The turn's sources as listed, for checks that read what a citation points at. */
+  sources: Source[];
   citations: number[];
   error?: { kind: string; message: string };
   done: boolean;
@@ -74,6 +90,7 @@ export function summarize(events: TimedEvent[], totalMs: number): TurnSummary {
     searches: 0,
     queries: [],
     sourceNumbers: [],
+    sources: [],
     citations: [],
     done: false,
     totalMs,
@@ -93,6 +110,7 @@ export function summarize(events: TimedEvent[], totalMs: number): TurnSummary {
         summary.answer += event.text;
         break;
       case 'sources':
+        summary.sources = event.sources;
         summary.sourceNumbers = event.sources.map((source) => source.n);
         break;
       case 'done':
@@ -107,6 +125,20 @@ export function summarize(events: TimedEvent[], totalMs: number): TurnSummary {
   }
   summary.citations = citedNumbers(summary.answer);
   return summary;
+}
+
+/** Table rows and list items: the lines where an answer makes one claim per item. */
+function itemLines(answer: string): string[] {
+  return answer
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^(\||[-*•]\s|\d+[.)]\s)/.test(line))
+    .filter((line) => !/^\|[\s:|-]+\|?$/.test(line));
+}
+
+/** A line cut short for a failure message. */
+function excerpt(line: string): string {
+  return line.length <= 80 ? line : `${line.slice(0, 80)}…`;
 }
 
 /** Runs the checks every turn must pass, then the case's own. */
@@ -202,6 +234,49 @@ export function check(turn: TurnSummary, expect: Expectation): CheckResult[] {
       name: 'does not say',
       pass: !expect.rejects.test(turn.answer),
       detail: String(expect.rejects),
+    });
+  }
+
+  if (expect.citesVerdicts) {
+    const uncited = itemLines(turn.answer).filter(
+      (line) => /\bunchanged\b/i.test(line) && citedNumbers(line).length === 0,
+    );
+    results.push({
+      name: 'cites every unchanged verdict',
+      pass: uncited.length === 0,
+      detail:
+        uncited.length === 0
+          ? 'no uncited "unchanged"'
+          : `no citation: ${uncited.map(excerpt).join(' / ')}`,
+    });
+  }
+
+  if (expect.rowSources) {
+    const names = expect.rowSources;
+    const byNumber = new Map(turn.sources.map((source) => [source.n, source]));
+    const wrong: string[] = [];
+    for (const line of itemLines(turn.answer)) {
+      const lower = line.toLowerCase();
+      const named = names.filter((name) => lower.includes(name.toLowerCase()));
+      const [name] = named;
+      if (named.length !== 1 || !name) continue;
+      for (const n of new Set(citedNumbers(line))) {
+        const source = byNumber.get(n);
+        if (!source) continue; // "citations resolve" reports this one.
+        const text =
+          `${source.title} ${source.url} ${source.snippet ?? ''}`.toLowerCase();
+        if (!text.includes(name.toLowerCase())) {
+          wrong.push(`[${n}] (${source.title}) cited for ${name}`);
+        }
+      }
+    }
+    results.push({
+      name: 'row sources match their item',
+      pass: wrong.length === 0,
+      detail:
+        wrong.length === 0
+          ? 'every row cites pages about its own item'
+          : wrong.join(' / '),
     });
   }
 
