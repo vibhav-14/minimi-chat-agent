@@ -6,7 +6,7 @@ conversation it has had.
 It resolves "Monday" or "last Tuesday" in your time zone, recalls what it
 answered then and which sources it used, searches for what has changed, and
 answers old against new with numbered citations.
-
+(has a limit problem i hope you understand the free tiers arent generous)
 **Why it is built this way:** [DESIGN.md](DESIGN.md) (one page).
 **Full working spec:** [docs/architecture.md](docs/architecture.md).
 
