@@ -38,6 +38,17 @@ describe('SYSTEM_PROMPT for re-checking an earlier answer', () => {
         'the verdict is could not verify',
       ],
     ],
+    // Live: a Salesforce row read "$165, unchanged" with no source, and a
+    // restructuring from two weeks earlier was listed as "since Monday".
+    [
+      'no uncited current value, and nothing older than the date as new',
+      [
+        'Every current value carries its [n] citation',
+        'the earlier value carries none',
+        'you cannot cite is could not verify, never unchanged',
+        'only what is dated on or after that date',
+      ],
+    ],
     [
       'a headline that agrees with the rows',
       ['headline must agree with the rows', 'lead with what changed'],
