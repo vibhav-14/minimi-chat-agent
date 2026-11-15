@@ -306,12 +306,40 @@ describe('executeWebSearch since', () => {
         '## Query: "a"',
         'No pages dated 2026-11-09 or later for this query; showing the latest results instead, all dated before 2026-11-09.',
         '',
-        '[1] Title of https://a.test/old — https://a.test/old (published 2025-03-01)',
+        '[1] Title of https://b.test/review — https://b.test/review (published 2026-10-01)',
       ].join('\n'),
     );
     expect(outcome.text).toContain(
-      '[2] Title of https://b.test/review — https://b.test/review (published 2026-10-01)',
+      '[2] Title of https://a.test/old — https://a.test/old (published 2025-03-01)',
     );
+  });
+
+  // Results come in relevance order, so without sorting the per-query cap
+  // could keep a 2019 page and cut last month's, under "the latest results".
+  it('keeps the newest results when a fallback query has more than fit', async () => {
+    const dates = [
+      '2019-06-01',
+      '2024-02-01',
+      '2023-05-01',
+      '2025-01-01',
+      '2022-08-01',
+      '2026-10-20',
+    ];
+    const { provider } = tableProvider({
+      a: dates.map((publishedDate) =>
+        result(`https://a.test/${publishedDate}`, { publishedDate }),
+      ),
+    });
+
+    const outcome = await run({ queries: ['a'], since: SINCE }, provider);
+
+    expect(outcome.sourcesAdded.map((source) => source.publishedDate)).toEqual([
+      '2026-10-20',
+      '2025-01-01',
+      '2024-02-01',
+      '2023-05-01',
+      '2022-08-01',
+    ]);
   });
 
   // Falling back for the whole call would let old pages through for

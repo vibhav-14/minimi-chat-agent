@@ -203,10 +203,11 @@ function render(sections: string[], since: string | undefined): string {
  * noise to remove: an old article about a past price change is what would
  * lead the model to report a stale change as new.
  *
- * When that would leave the query nothing, its results are kept as they came
- * and `fellBack` is set: the latest pages, clearly marked as older, answer
- * "has it changed?" better than an empty result that sends the model to
- * search again.
+ * When that would leave the query nothing, its results are kept, newest
+ * first, and `fellBack` is set: the latest pages, clearly marked as older,
+ * answer "has it changed?" better than an empty result that sends the model
+ * to search again. Sorting matters because the per-query cap comes after:
+ * in relevance order it could keep a 2019 page and cut last month's.
  */
 function applySince(
   results: SearchResult[],
@@ -221,7 +222,11 @@ function applySince(
   if (kept.length > 0 || results.length === 0) {
     return { results: kept, fellBack: false };
   }
-  return { results, fellBack: true };
+  // Every result here is dated; an undated one would sort last.
+  const newestFirst = [...results].sort((a, b) =>
+    (b.publishedDate ?? '').localeCompare(a.publishedDate ?? ''),
+  );
+  return { results: newestFirst, fellBack: true };
 }
 
 function sourceLine(source: Source): string {
