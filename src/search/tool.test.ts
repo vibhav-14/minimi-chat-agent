@@ -376,6 +376,35 @@ describe('executeWebSearch since', () => {
     ).toHaveLength(1);
   });
 
+  // A live answer listed a restructuring from 29 October under "since
+  // Monday": the news query had fallen back to its latest, older results.
+  it('does not fall back for news: old news is reported as none since', async () => {
+    const { provider, requests } = tableProvider({
+      'Pipedrive news': [
+        result('https://n.test/restructuring', { publishedDate: '2026-10-29' }),
+      ],
+      'Zoho news': [fresh],
+    });
+
+    const outcome = await run(
+      { queries: ['Pipedrive news', 'Zoho news'], since: SINCE, topic: 'news' },
+      provider,
+    );
+
+    expect(requests).toHaveLength(2);
+    expect(outcome.queries).toEqual([
+      { query: 'Pipedrive news', status: 'ok', sources: [] },
+      { query: 'Zoho news', status: 'ok', sources: [1] },
+    ]);
+    expect(outcome.sourcesAdded.map((source) => source.url)).toEqual([
+      'https://a.test/launch',
+    ]);
+    expect(outcome.text).toContain(
+      '## Query: "Pipedrive news"\nNo news dated 2026-11-09 or later. That is the finding for this query: report that nothing new was found since 2026-11-09.',
+    );
+    expect(outcome.text).not.toContain('latest results instead, all dated');
+  });
+
   // "No results dated <since> or later" implies older pages exist and
   // invites the model to search again without since, for nothing.
   it('says only "No results." when the provider found none', async () => {
