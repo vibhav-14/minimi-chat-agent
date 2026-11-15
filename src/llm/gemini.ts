@@ -39,12 +39,12 @@ export interface GeminiOptions {
 export const FIRST_CHUNK_TIMEOUT_MS = 30_000;
 /** Cap on one whole step, so a stream that stalls after starting also ends. */
 export const STEP_TIMEOUT_MS = 120_000;
-/** Suggested in the timeout message: it answered fastest on the free tier. */
-const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+/** Suggested in the timeout message: the other model that passed the eval. */
+const FALLBACK_MODEL = 'gemini-3.6-flash';
 
 // Low, not the SDK default of medium: a chat reply that mostly reads search
 // results gains little from more, and every thinking token delays the first
-// visible one. The default model, gemini-3.6-flash, ran a live turn with it.
+// visible one. The default model, gemini-3.5-flash-lite, passed the live eval with it.
 // Not `minimal`: some Gemini 3 models (gemini-3.8-flash) reject it, and low
 // keeps any GEMINI_MODEL override working.
 const THINKING_LEVEL = ThinkingLevel.LOW;

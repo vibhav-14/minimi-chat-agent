@@ -417,7 +417,7 @@ describe('createGeminiProvider deadlines', () => {
     expect(error).toBeInstanceOf(LlmError);
     expect(error).toMatchObject({ kind: 'timeout' });
     expect((error as LlmError).message).toMatch(
-      /slow-model did not respond.*GEMINI_MODEL.*gemini-3\.5-flash-lite/,
+      /slow-model did not respond.*GEMINI_MODEL.*gemini-3\.6-flash/,
     );
     expect(requests[0]?.config?.abortSignal?.aborted).toBe(true);
   });

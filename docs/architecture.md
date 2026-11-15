@@ -199,8 +199,9 @@ send its first chunk within 30 s and finish within 120 s, or the adapter
 aborts the request and the error names another `GEMINI_MODEL` to try. A client
 disconnect aborts the model request and the searches.
 
-The model is Gemini (`GEMINI_MODEL`, default `gemini-3.6-flash`, which
-answered reliably on the free tier where `gemini-3.8-flash` did not) through the
+The model is Gemini (`GEMINI_MODEL`, default `gemini-3.5-flash-lite`, which
+passed the live eval several times faster than `gemini-3.6-flash` on the free
+tier, where `gemini-3.8-flash` never answered) through the
 `@google/genai` SDK's `models.generateContentStream`, the stateless API: each
 request carries the whole context. Google now recommends its Interactions API
 for new projects, whose main gain is server-side conversation state; this app

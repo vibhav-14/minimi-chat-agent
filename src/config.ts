@@ -6,9 +6,11 @@ import {
 } from './search/tavily.js';
 
 const DEFAULT_PORT = 3000;
-// On the free tier, tested 2026-11-11: gemini-3.6-flash answered in 4 s,
-// while gemini-3.8-flash accepted requests and never responded.
-const DEFAULT_GEMINI_MODEL = 'gemini-3.6-flash';
+// Chosen on speed, free tier, live eval of 2026-11-15: gemini-3.5-flash-lite
+// passed all six cases with a median first token of 4.4 s, while
+// gemini-3.6-flash took 10 to 45 s and once timed out. gemini-3.8-flash
+// accepted requests and never responded.
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_DATA_DIR = './data';
 
 /** True for an IANA zone name this runtime knows, such as Asia/Kolkata. */
