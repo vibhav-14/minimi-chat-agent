@@ -376,7 +376,9 @@ describe('executeWebSearch since', () => {
     ).toHaveLength(1);
   });
 
-  it('says there were no results when the provider found none', async () => {
+  // "No results dated <since> or later" implies older pages exist and
+  // invites the model to search again without since, for nothing.
+  it('says only "No results." when the provider found none', async () => {
     const { provider } = tableProvider({ a: [] });
 
     const outcome = await run({ queries: ['a'], since: SINCE }, provider);
@@ -384,7 +386,8 @@ describe('executeWebSearch since', () => {
     expect(outcome.queries).toEqual([
       { query: 'a', status: 'ok', sources: [] },
     ]);
-    expect(outcome.text).toContain('No results dated 2026-11-09 or later.');
+    expect(outcome.text).toContain('## Query: "a"\nNo results.\n');
+    expect(outcome.text).not.toContain('or later.');
   });
 
   it('leaves results unfiltered and in order without since', async () => {
@@ -488,7 +491,7 @@ describe('executeWebSearch text', () => {
         'Essential $14 per seat.',
         '',
         '## Query: "Close CRM pricing"',
-        'No results dated 2026-11-09 or later.',
+        'No results.',
         '',
         '## Query: "Zoho CRM pricing"',
         'Search failed (quota): Plan limit reached.',
