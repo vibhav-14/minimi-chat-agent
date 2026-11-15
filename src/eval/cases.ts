@@ -34,7 +34,10 @@ export const EVAL_CASES: EvalCase[] = [
         /Pipedrive[^\n]*(\b(chang|increas|rais|up from|went up|higher|from \$9|was \$9)|→|->)/i,
       // The then-and-now rows the prompt asks for carry an arrow either way,
       // so "$9 then → $14 now, unchanged" would pass `matches` alone.
-      rejects: /Pipedrive[^\n]*\bunchanged\b/i,
+      // It stops at the next product's name: "Pipedrive is higher, while
+      // HubSpot and Zoho remain unchanged" is a correct headline.
+      rejects:
+        /Pipedrive(?:(?!HubSpot|Salesforce|Zoho|Freshsales)[^\n])*\bunchanged\b/i,
       citesVerdicts: true,
       rowSources: ['HubSpot', 'Salesforce', 'Pipedrive', 'Zoho', 'Freshsales'],
     },
