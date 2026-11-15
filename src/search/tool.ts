@@ -165,10 +165,13 @@ export async function executeWebSearch(
     const note = fellBack
       ? `\nNo pages dated ${since} or later for this query; showing the latest results instead, all dated before ${since}.`
       : '';
+    // Entries are empty only when the provider found nothing: with `since`, a
+    // query of only older pages falls back to them. Naming the date here
+    // would imply older pages exist and invite a wasted retry without it.
     sections.push(
       entries.length > 0
         ? `${heading}${note}\n\n${entries.join('\n\n')}`
-        : `${heading}\nNo results${since ? ` dated ${since} or later` : ''}.`,
+        : `${heading}\nNo results.`,
     );
   });
 
