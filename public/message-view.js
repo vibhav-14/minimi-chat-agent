@@ -47,6 +47,22 @@ export function userMessage(text, date) {
 }
 
 /**
+ * A message loaded from history, rendered as a finished live one would be.
+ *
+ * @param {import('./types.js').Message} message
+ * @returns {HTMLElement}
+ */
+export function storedMessage(message) {
+  const date = new Date(message.createdAt);
+  if (message.role === 'user') return userMessage(message.content, date);
+  const view = new AssistantMessage(date, () => undefined);
+  view.text = message.content;
+  view.setSources(message.sources);
+  view.finish();
+  return view.element;
+}
+
+/**
  * One source: number, title linking to the page, site and publish date.
  *
  * @param {Source} source

@@ -12,8 +12,27 @@
   </head>
   <body>
     <div class="layout">
+      <nav class="sidebar" id="sidebar" aria-label="Conversations">
+        <div class="sidebar-head">
+          <button class="button new-chat" id="new-chat" type="button">
+            New chat
+          </button>
+        </div>
+        <ul class="conversation-list" id="conversation-list"></ul>
+      </nav>
+      <div class="backdrop" id="backdrop" hidden></div>
+
       <main class="main">
         <header class="topbar">
+          <button
+            class="button menu-button"
+            id="menu-button"
+            type="button"
+            aria-controls="sidebar"
+            aria-expanded="false"
+          >
+            Chats
+          </button>
           <h1 class="brand">minimi chat</h1>
         </header>
 

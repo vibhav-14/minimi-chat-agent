@@ -33,6 +33,32 @@ export async function streamChat(body, signal, onEvent) {
 }
 
 /**
+ * Every conversation, newest first.
+ *
+ * @returns {Promise<import('./types.js').Conversation[]>}
+ */
+export async function listConversations() {
+  const response = await fetch('/api/conversations');
+  if (!response.ok) throw new Error(await errorMessage(response));
+  const body = /** @type {unknown} */ (await response.json());
+  return /** @type {import('./types.js').Conversation[]} */ (body);
+}
+
+/**
+ * One conversation with its messages, or null if it does not exist.
+ *
+ * @param {string} id
+ * @returns {Promise<import('./types.js').ConversationWithMessages | null>}
+ */
+export async function getConversation(id) {
+  const response = await fetch(`/api/conversations/${encodeURIComponent(id)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(await errorMessage(response));
+  const body = /** @type {unknown} */ (await response.json());
+  return /** @type {import('./types.js').ConversationWithMessages} */ (body);
+}
+
+/**
  * The `error` field of a JSON error response, or a generic line.
  *
  * @param {Response} response

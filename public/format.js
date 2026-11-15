@@ -29,6 +29,22 @@ export function formatTimestamp(date, { locale, timeZone } = {}) {
 }
 
 /**
+ * A short date for the conversation list: "Mon, 9 Nov 2026".
+ *
+ * @param {Date} date
+ * @param {Locale} [options]
+ */
+export function formatDate(date, { locale, timeZone } = {}) {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone,
+  }).format(date);
+}
+
+/**
  * A calendar day the server resolved ("2026-11-10"), as "10 Nov 2026". The
  * day is already the user's local day, so it is formatted without a zone shift.
  *

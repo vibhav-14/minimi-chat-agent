@@ -1,6 +1,7 @@
 // The server's JSON shapes, for type checking the browser code. They mirror
-// src/agent/events.ts and src/search/sources.ts; the browser cannot import
-// TypeScript, so a change there must be copied here.
+// src/agent/events.ts, src/search/sources.ts and the conversation routes in
+// src/app.ts; the browser cannot import TypeScript, so a change there must
+// be copied here.
 
 /**
  * @typedef {object} Source
@@ -26,5 +27,23 @@
  *   | { type: 'done', messageId: string }
  *   | { type: 'error', kind: string, message: string }} AgentEvent
  */
+
+/**
+ * @typedef {object} Conversation
+ * @property {string} id
+ * @property {string} title
+ * @property {string} createdAt ISO 8601.
+ */
+
+/**
+ * @typedef {object} Message
+ * @property {string} id
+ * @property {'user' | 'assistant'} role
+ * @property {string} content
+ * @property {string} createdAt ISO 8601.
+ * @property {Source[]} sources
+ */
+
+/** @typedef {Conversation & { messages: Message[] }} ConversationWithMessages */
 
 export {};
