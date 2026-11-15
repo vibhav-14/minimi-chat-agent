@@ -79,10 +79,113 @@ a {
   white-space: nowrap;
 }
 
-/* Layout: the thread scrolls between a fixed top bar and composer. */
+/* Layout: conversations on the left; the thread scrolls between a fixed
+   top bar and the composer. */
 .layout {
   display: grid;
+  grid-template-columns: 16.5rem minmax(0, 1fr);
   height: 100dvh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.sidebar-head {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.new-chat {
+  width: 100%;
+}
+
+.conversation-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.conversation {
+  display: block;
+  padding: 0.5rem 0.625rem;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.conversation:hover {
+  background: var(--bg-subtle);
+}
+
+.conversation[aria-current='page'] {
+  background: var(--bg-subtle);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.conversation-title {
+  display: block;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-date {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Doubled class: .button, later in the file, would otherwise show it. */
+.button.menu-button {
+  display: none;
+}
+
+.backdrop {
+  display: none;
+}
+
+/* Narrow screens: the list becomes a drawer behind the Chats button. */
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2;
+    width: min(18rem, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.15s ease-out;
+  }
+
+  .sidebar.open {
+    transform: none;
+  }
+
+  .backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: rgb(0 0 0 / 0.35);
+  }
+
+  .button.menu-button {
+    display: inline-flex;
+    min-height: 2rem;
+    padding: 0.25rem 0.625rem;
+  }
 }
 
 .main {

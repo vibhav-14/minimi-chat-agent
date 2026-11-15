@@ -1,6 +1,18 @@
-// Wires the page together: the composer, the running turn, and scrolling.
-import { ChatRequestError, streamChat } from './api.js';
-import { AssistantMessage, userMessage } from './message-view.js';
+// Wires the page together: the composer, the running turn, the open
+// conversation (kept in the URL hash), and scrolling.
+import {
+  ChatRequestError,
+  getConversation,
+  listConversations,
+  streamChat,
+} from './api.js';
+import { el } from './dom.js';
+import {
+  AssistantMessage,
+  storedMessage,
+  userMessage,
+} from './message-view.js';
+import { createSidebar } from './sidebar.js';
 
 /** @typedef {import('./types.js').AgentEvent} AgentEvent */
 
@@ -21,6 +33,12 @@ const thread = byId('thread', HTMLDivElement);
 const composer = byId('composer', HTMLFormElement);
 const prompt = byId('prompt', HTMLTextAreaElement);
 const sendButton = byId('send', HTMLButtonElement);
+const sidebar = createSidebar({
+  sidebar: byId('sidebar', HTMLElement),
+  list: byId('conversation-list', HTMLUListElement),
+  menuButton: byId('menu-button', HTMLButtonElement),
+  backdrop: byId('backdrop', HTMLDivElement),
+});
 
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 /** Pixels from the bottom that still count as "at the bottom". */
@@ -106,6 +124,7 @@ async function send(message) {
     running = null;
     setRunning(false);
     prompt.focus();
+    void refreshConversations();
   }
 }
 
@@ -120,6 +139,8 @@ function handleEvent(event, view) {
   switch (event.type) {
     case 'start':
       conversationId = event.conversationId;
+      // Replace, not push: a new chat getting its id is not a navigation.
+      history.replaceState(null, '', `#${conversationId}`);
       return false;
     case 'recall':
       view.recall(event);
@@ -147,4 +168,82 @@ function handleEvent(event, view) {
   }
 }
 
+/** @type {import('./types.js').Conversation[]} */
+let conversations = [];
+
+async function refreshConversations() {
+  try {
+    conversations = await listConversations();
+  } catch (error) {
+    console.error('Could not load conversations:', error);
+  }
+  sidebar.render(conversations, conversationId);
+}
+
+/** Leaving a conversation stops its running turn; the question stays stored. */
+function leaveConversation() {
+  running?.abort();
+  thread.replaceChildren();
+  stickToBottom = true;
+}
+
+function startNewChat() {
+  leaveConversation();
+  conversationId = undefined;
+  sidebar.render(conversations, conversationId);
+  prompt.focus();
+}
+
+// Several opens can overlap (fast clicks); only the latest one renders.
+let openRequest = 0;
+
+/** @param {string} id */
+async function openConversation(id) {
+  leaveConversation();
+  conversationId = id;
+  sidebar.render(conversations, conversationId);
+  const request = ++openRequest;
+  let conversation;
+  try {
+    conversation = await getConversation(id);
+  } catch (error) {
+    console.error('Could not load the conversation:', error);
+    if (request === openRequest)
+      showNotice('This conversation could not be loaded.');
+    return;
+  }
+  if (request !== openRequest) return;
+  if (!conversation) {
+    conversationId = undefined;
+    history.replaceState(null, '', location.pathname);
+    sidebar.render(conversations, conversationId);
+    showNotice('That conversation does not exist. This is a new chat.');
+    return;
+  }
+  thread.replaceChildren(...conversation.messages.map(storedMessage));
+  followOutput();
+}
+
+/** @param {string} text */
+function showNotice(text) {
+  thread.replaceChildren(el('p', { className: 'notice stopped' }, text));
+}
+
+/** The hash names the open conversation; an empty hash is a new chat. */
+function followHash() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (id === (conversationId ?? '')) return;
+  if (id) void openConversation(id);
+  else startNewChat();
+}
+
+byId('new-chat', HTMLButtonElement).addEventListener('click', () => {
+  // Clearing the hash with pushState fires no hashchange, so start directly.
+  history.pushState(null, '', location.pathname);
+  startNewChat();
+});
+window.addEventListener('hashchange', followHash);
+
+followHash();
+void refreshConversations();
 prompt.focus();
