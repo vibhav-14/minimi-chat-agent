@@ -127,6 +127,23 @@ describe('check', () => {
       pass: false,
     });
   });
+
+  it('fails an answer that says what the case rejects', () => {
+    const turn = summarize(
+      timed([{ type: 'token', text: 'Pipedrive: $9 → $14 [1], unchanged.' }]),
+      1,
+    );
+
+    expect(check(turn, { rejects: /unchanged/i }).at(-1)).toMatchObject({
+      name: 'does not say',
+      pass: false,
+      detail: '/unchanged/i',
+    });
+    expect(check(turn, { rejects: /Postgres/ }).at(-1)).toMatchObject({
+      name: 'does not say',
+      pass: true,
+    });
+  });
 });
 
 describe('check: a date with nothing stored', () => {

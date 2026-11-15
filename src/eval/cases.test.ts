@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { EVAL_CASES } from './cases.js';
 import { check, summarize } from './checks.js';
 
-function says(caseId: string, answer: string): boolean | undefined {
+const ANSWER_CHECKS = ['says', 'does not say'];
+
+/** Whether a case's checks on the answer text all pass for this answer. */
+function says(caseId: string, answer: string): boolean {
   const testCase = EVAL_CASES.find((c) => c.id === caseId);
   if (!testCase) throw new Error(`no case ${caseId}`);
   const turn = summarize(
     [{ event: { type: 'token', text: answer }, at: 0 }],
     0,
   );
-  return check(turn, testCase.expect).find((r) => r.name === 'says')?.pass;
+  return check(turn, testCase.expect)
+    .filter((r) => ANSWER_CHECKS.includes(r.name))
+    .every((r) => r.pass);
 }
 
 describe('eval cases', () => {
@@ -33,6 +38,18 @@ describe('eval cases', () => {
         false,
       );
     });
+
+    // The prompt's then-and-now rows carry an arrow or "was" whatever the
+    // verdict, and both satisfy the positive pattern on their own.
+    it.each([
+      '* Pipedrive Growth: $9→$14 [3], unchanged',
+      '* Pipedrive Growth: was $9, now $14 [3], unchanged',
+    ])(
+      'fails a then-and-now Pipedrive row that still says unchanged: %s',
+      (row) => {
+        expect(says('crm-monday', row)).toBe(false);
+      },
+    );
 
     it('passes an answer that reports the change', () => {
       expect(
