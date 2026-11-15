@@ -20,6 +20,24 @@ describe('SYSTEM_PROMPT for re-checking an earlier answer', () => {
       'like with like, never "unchanged" across plans or bases',
       ['Compare like with like', 'billing basis', 'do not call it unchanged'],
     ],
+    // A live run put a Freshsales page's $9 in the Pipedrive row, next to a
+    // Pipedrive result at $39, and called the row unchanged.
+    [
+      'a current value only from this turn, from a page about that product',
+      [
+        'only from a result of this turn that is about that same product',
+        'not evidence for this one',
+        'the earlier value is never the current value',
+      ],
+    ],
+    [
+      'differing or conflicting values reported, never unchanged',
+      [
+        'disagree with each other',
+        'changed or conflicting, never unchanged',
+        'the verdict is could not verify',
+      ],
+    ],
     [
       'a headline that agrees with the rows',
       ['headline must agree with the rows', 'lead with what changed'],
