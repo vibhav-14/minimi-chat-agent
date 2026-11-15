@@ -146,6 +146,18 @@ describe('describeQuery', () => {
       '2 latest results (none since 9 Nov 2026)',
     );
   });
+
+  // A fallback flag with no date to name must not render "none since undefined".
+  it('falls back to a plain count when the since date is missing', () => {
+    const state = {
+      query: 'a',
+      status: 'ok' as const,
+      sources: [1],
+      sinceFallback: true as const,
+    };
+
+    expect(describeQuery(state, undefined, 'en-GB')).toBe('1 result');
+  });
 });
 
 describe('describeSearch', () => {
