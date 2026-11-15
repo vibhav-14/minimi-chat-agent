@@ -313,9 +313,10 @@ day:
 - the current Node.js LTS on the most recent 3 November before today (last
   year's on 3 November itself).
 
-Each is titled "Demo:", its question starts "(Demo)" and its answer opens with
-a line saying it is seeded demo history with illustrative prices, so both a
-person and the model can tell. Pipedrive's seeded price is deliberately stale,
-so "has any of them changed pricing?" always has something to find. When two
-of the dates fall on one day the exchanges sit at different hours and are all
-still found.
+Each is titled "Demo:", so a person can tell it apart in the sidebar. The
+question and answer themselves carry no disclaimer: an earlier version opened
+each answer with "prices are illustrative", and the model then treated the old
+values as unreliable and reported a changed price as unchanged. Pipedrive's
+seeded price is deliberately stale, so "has any of them changed pricing?"
+always has something to find. When two of the dates fall on one day the
+exchanges sit at different hours and are all still found.

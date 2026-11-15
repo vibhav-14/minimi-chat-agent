@@ -70,15 +70,27 @@ describe('seedDemoHistory', () => {
     });
   });
 
-  it('marks every seeded answer as demo data', () => {
+  // A disclaimer inside the stored text made the model treat the old prices
+  // as unreliable and skip comparing against them, so only the title marks
+  // the seeded conversations as demo data.
+  it('labels seeded conversations by title only, keeping the stored text a plain exchange', () => {
     const seeded = seededAt('2026-11-11T12:00:00Z');
 
     for (const conversation of seeded.listConversations()) {
+      expect(conversation.title.startsWith('Demo: ')).toBe(true);
       const [question, answer] = seeded.getMessages(conversation.id);
-      expect(question?.content.startsWith('(Demo) ')).toBe(true);
-      expect(answer?.content.startsWith('(Seeded demo history')).toBe(true);
+      expect(question?.content).not.toMatch(/demo/i);
+      expect(answer?.content).not.toMatch(/demo|seeded|illustrative/i);
       expect(answer?.sources.every((s) => s.snippet)).toBe(true);
     }
+  });
+
+  it('keeps the deliberately stale Pipedrive price, so a re-check always finds a change', () => {
+    const seeded = seededAt('2026-11-11T12:00:00Z');
+    const crm = seeded.listConversations().find((c) => c.title.includes('CRM'));
+    const [, answer] = seeded.getMessages(crm?.id ?? '');
+
+    expect(answer?.content).toContain('3. Pipedrive Growth: $9 [3]');
   });
 
   it('leaves a store with history alone', () => {
