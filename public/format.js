@@ -156,13 +156,18 @@ export function describeRecall(event, locale) {
 
 /**
  * @param {QueryState} state
+ * @param {string} [since] The search's `since` day, YYYY-MM-DD.
+ * @param {string} [locale]
  */
-export function describeQuery(state) {
+export function describeQuery(state, since, locale) {
   switch (state.status) {
     case 'searching':
       return 'searching';
     case 'ok':
-      return count(state.sources.length, 'result');
+      // Nothing was dated on or after `since`, so these are older pages.
+      return state.sinceFallback && since
+        ? `${count(state.sources.length, 'latest result')} (none since ${formatDay(since, locale)})`
+        : count(state.sources.length, 'result');
     case 'failed':
       return `failed: ${state.message}`;
   }
