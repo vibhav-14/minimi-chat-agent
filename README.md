@@ -1,13 +1,7 @@
 # minimi-chat-agent
 
 A chat agent with one tool, web search, and a dated memory of every
-conversation it has had. It is built for questions that mix the two:
-
-- "On Monday we shortlisted 5 CRM tools for a 20-person sales team. Has any of
-  them changed pricing or shipped something big since?"
-- "What did I ask you on 3 November? Is your answer still correct today?"
-- "Last Tuesday I asked you about Postgres hosting. Has any pricing changed
-  since then?"
+conversation it has had.
 
 It resolves "Monday" or "last Tuesday" in your time zone, recalls what it
 answered then and which sources it used, searches for what has changed, and
